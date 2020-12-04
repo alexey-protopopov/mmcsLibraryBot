@@ -14,10 +14,10 @@ db = DbManager('db.db')
 logging.basicConfig(format=u'%(filename)s [ LINE:%(lineno)+3s ]#%(levelname)+8s [%(asctime)s]  %(message)s',
                     level=logging.INFO)
 
-DOCS_PATH = "G:\\Проектная деятельность\\upload"
+DOCS_PATH = "G:\\Проектная деятельность\\upload2"
 course = 2
 group = 9
-semester = 1
+semester = 2
 
 
 async def uploadMediaFiles():
@@ -33,7 +33,7 @@ async def uploadMediaFiles():
                     try:
                         msg = await bot.send_document(MY_ID, file, disable_notification=True)
                         file_id = getattr(msg, 'document').file_id
-                        db.add_file(file_id, fname, course, group, semester, discipline_name, dir_name)
+                        db.add_file(file_id, fname, course, group, semester, discipline_name, dir_name, MY_ID)
                         logging.info(f'Successfully uploaded and saved to DB file {fname} with id {file_id}')
                     except Exception as e:
                         logging.error('Couldn\'t upload {}. Error is {}'.format(fname, e))

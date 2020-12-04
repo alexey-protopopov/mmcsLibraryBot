@@ -46,8 +46,7 @@ class DbManager:
         with self.connection:
             return self.cursor.execute("SELECT * FROM `subscriptions` WHERE `user_id` = ?", (user_id,)).fetchone()
 
-    def get_disciplines(self, user_id, semester):
-        """Получаем все дисциплины пользователя"""
+    def get_db_group(self, user_id):
         with self.connection:
             user_data = self.get_user_info(user_id)
             if not user_data:
@@ -57,10 +56,47 @@ class DbManager:
                 for direction in groups:
                     if user_data[4] in direction:
                         break
+                return direction[-1]
 
-                result = self.cursor.execute('SELECT DISTINCT `discipline_name` FROM `files` WHERE `course` = ? AND `group` = ? AND `semester` = ?',
-                                             (user_data[3], direction[-1], semester)).fetchall()
+    def get_disciplines(self, user_id, semester):
+        """Получаем все дисциплины пользователя"""
+        with self.connection:
+            user_data = self.get_user_info(user_id)
+            group = self.get_db_group(user_id)
+            if not group or not user_data:
+                print("get_disciplines not group or not user_data")
+                return []
+            else:
+                result = self.cursor.execute(
+                    'SELECT DISTINCT `discipline_name` FROM `files` WHERE `course` = ? AND `group` = ? AND `semester` = ?',
+                    (user_data[3], group, semester)).fetchall()
                 return [v[0] for v in result]
+
+    def get_folders_by_discipline(self, user_id, semester, discipline_name):
+        """Получаем все разделы для дисциплины пользователя"""
+        with self.connection:
+            user_data = self.get_user_info(user_id)
+            group = self.get_db_group(user_id)
+            if not group or not user_data:
+                return []
+            else:
+                result = self.cursor.execute(
+                    'SELECT DISTINCT `dir_name` FROM `files` WHERE `course` = ? AND `group` = ? AND `semester` = ? AND `discipline_name` = ?',
+                    (user_data[3], group, semester, discipline_name)).fetchall()
+                return [v[0] for v in result]
+
+    def get_file_record(self, user_id, semester, discipline_name, dir_name, fname):
+        """Получаем запись файла из бд, c определённым курсом,группой, названием, семестром"""
+        with self.connection:
+            user_data = self.get_user_info(user_id)
+            group = self.get_db_group(user_id)
+            if not group or not user_data:
+                return []
+            else:
+                result = self.cursor.execute(
+                    'SELECT * FROM `files` WHERE `course` = ? AND `group` = ? AND `semester` = ? AND `discipline_name` = ? AND `dir_name` = ? AND `fname` = ?',
+                    (user_data[3], group, semester, discipline_name, dir_name, fname)).fetchone()
+                return result
 
     def file_exists(self, fname, discipline_name, dir_name):
         """Проверяем, есть ли уже файл в базе"""
@@ -70,18 +106,27 @@ class DbManager:
                 (fname, discipline_name, dir_name)).fetchall()
             return bool(len(result))
 
-    def add_file(self, file_id, fname, course, group, semester, discipline_name, dir_name):
+    def add_file(self, file_id, fname, course, group, semester, discipline_name, dir_name, owner):
         """Добавление файла в db"""
         with self.connection:
             return self.cursor.execute(
-                "INSERT INTO `files` (`file_id`, `fname`, `course`,`group`,`semester`,`discipline_name`,`dir_name`) VALUES(?,?,?,?,?,?,?)",
-                (file_id, fname, course, group, semester, discipline_name, dir_name))
+                "INSERT INTO `files` (`file_id`, `fname`, `course`,`group`,`semester`,`discipline_name`,`dir_name`,`owner`) VALUES(?,?,?,?,?,?,?,?)",
+                (file_id, fname, course, group, semester, discipline_name, dir_name, owner))
 
     def get_file(self, num_id):
         """Получение id файла"""
         with self.connection:
             result = self.cursor.execute('SELECT `file_id` FROM `files` WHERE `id` = ?', (num_id,)).fetchall()
             return result[0][0]
+
+    def get_files_from_folder(self, user_id, semester, discipline_name, dir_name):
+        user_data = self.get_user_info(user_id)
+        group = self.get_db_group(user_id)
+        with self.connection:
+            result = self.cursor.execute('SELECT * FROM `files` WHERE `course` = ? AND `group` = ? AND `semester` = ? '
+                                         'AND `discipline_name` = ? AND `dir_name` = ?',
+                                         (user_data[3], group, semester, discipline_name, dir_name)).fetchall()
+            return result
 
     def search_by_name(self, fname):
         """Поиск по названию"""
@@ -96,7 +141,6 @@ class DbManager:
     def close(self):
         """Закрываем соединение с БД"""
         self.connection.close()
-
 
 # db = DbManager("db.db")
 # print(db.get_disciplines(231905851))

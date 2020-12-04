@@ -13,9 +13,6 @@ bot = Bot(token=config.API_TOKEN)
 dp = Dispatcher(bot)
 
 db = DbManager('db.db')
-registrationStarted = False
-searchStarted = False
-
 logging.basicConfig(level=logging.INFO, format=u'%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 act = Actions()
 
@@ -23,7 +20,7 @@ act = Actions()
 # 1)Приветствие Пользователя, выбор курса, группы, по умолчанию, семестр(Посмотреть форматирование текста tg)
 @dp.message_handler(commands=['start'])
 async def subscribe(message: types.Message):
-    logging.info("/start command sent from user {0}".format(message.from_user.id))
+    logging.info("/start command sent from user {0}".format(message.from_user.full_name))
     if not db.subscriber_exists(message.from_user.id):
 
         await message.answer(text(bold('Привет!'), bold('Спасибо, что решил воспользоваться нашим ботом!'), sep='\n'),
@@ -39,7 +36,7 @@ async def subscribe(message: types.Message):
 
 @dp.message_handler(commands=['help'])
 async def showHelp(message: types.Message):
-    logging.info("/help command sent from user {0}".format(message.from_user.id))
+    logging.info("/help command sent from user {0}".format(message.from_user.full_name))
     act.reset()
     await message.answer(text("Список команд:", "/files —  учебные материалы", "/search —  поиск по названию",
                               "/admin —  стать админом[TEST]",
@@ -49,23 +46,16 @@ async def showHelp(message: types.Message):
 
 @dp.message_handler(commands=['files'])
 async def filesStore(message: types.Message):
-    logging.info("/files command sent from user {0}".format(message.from_user.id))
+    logging.info("/files command sent from user {0}".format(message.from_user.full_name))
     act.reset()
-    # await message.answer('📁')
     act.startFilesMode()
     semesters_kb = act.semestersKeyboard()
     await message.answer(text(bold("Выберите семестр")), reply_markup=semesters_kb, parse_mode=ParseMode.MARKDOWN_V2)
 
-    # user_id = message.from_user.id
-    # doc = open("test.pdf", 'rb')
-    # msg = await bot.send_document(user_id, doc, caption='Этот файл специально для тебя!')
-    # file_id = getattr(msg, 'document').file_id
-    # await message.answer(file_id)
-
 
 @dp.message_handler(commands=['forget'])
 async def deleteSubscriber(message: types.Message):
-    logging.info("/forget command sent from user {0}".format(message.from_user.id))
+    logging.info("/forget command sent from user {0}".format(message.from_user.full_name))
     act.reset()
     if db.subscriber_exists(message.from_user.id):
         db.delete_subscriber(message.from_user.id)
@@ -76,7 +66,7 @@ async def deleteSubscriber(message: types.Message):
 
 @dp.message_handler(commands=['search'])
 async def search(message: types.Message):
-    logging.info("/search command sent from user {0}".format(message.from_user.id))
+    logging.info("/search command sent from user {0}".format(message.from_user.full_name))
     act.startSearch()
     await message.answer("Что будем искать?")
 
@@ -85,9 +75,8 @@ async def search(message: types.Message):
 async def actions_handler(message: types.Message):
     # Регистрация пользователя
     if not db.subscriber_exists(message.from_user.id) and act.registrationStarted:
-        logging.info(
-            "actions_handler()::setCourseAndGroup mode \'{0}\' command sent from user {1}"
-                .format(message.text, message.from_user.id))
+        logging.info("actions_handler()::setCourseAndGroup mode \'{0}\' command sent from user {1}"
+                     .format(message.text, message.from_user.full_name))
         userInput = message.text.split('.')
         print(userInput)
         try:
@@ -107,7 +96,7 @@ async def actions_handler(message: types.Message):
     elif act.searchStarted:
         act.reset()
         logging.info("actions_handler()::search mode \'{0}\' command sent from user {1}"
-                     .format(message.text, message.from_user.id))
+                     .format(message.text, message.from_user.full_name))
         if len(message.text) < 4:
             await message.answer("Слишком короткий запрос(минимум 4 символа).")
         else:
@@ -119,7 +108,7 @@ async def actions_handler(message: types.Message):
     # Отправка файла пользователю
     elif message.text.startswith("/download"):
         logging.info("actions_handler()::sendFile mode \'{0}\' command sent from user {1}"
-                     .format(message.text, message.from_user.id))
+                     .format(message.text, message.from_user.full_name))
         try:
             user_id = message.from_user.id
             num_id = int(message.text[9:])
@@ -128,17 +117,24 @@ async def actions_handler(message: types.Message):
         except (ValueError, IndexError):
             await message.answer("Неверные данные! Попробуйте ещё раз.")
     # Вывод файлов/папок 0 уровень
-    elif act.startFilesMode and act.filesLevel == 0 and message.text in ('1 семестр', '2 семестр'):
-        disciplines_list = db.get_disciplines(message.from_user.id, int(message.text[0]))
-        if disciplines_list:
-            kb = act.generateDisciplinesKeyboard(disciplines_list)
-            act.fLevelUp()
-            await message.answer(text(bold("Выберите желаемый предмет")), reply_markup=kb, parse_mode=ParseMode.MARKDOWN_V2)
-        else:
-            await message.answer("<Пусто>")
-        # Вывод файлов/папок 1 уровень
-    elif act.startFilesMode and act.filesLevel == 1:
-        disciplines_list = db.get_disciplines(message.from_user.id, int(message.text[0]))
+    elif act.filesLevel == 1 and message.text == '⤴️На уровень выше':
+        act.reset()
+        act.startFilesMode()
+        semesters_kb = act.semestersKeyboard()
+        await message.answer(text(bold("Выберите семестр")), reply_markup=semesters_kb,
+                             parse_mode=ParseMode.MARKDOWN_V2)
+
+    elif act.startFilesMode and (act.filesLevel == 0 and message.text in ('1 семестр', '2 семестр',) or (message.text == '⤴️На уровень выше' and act.filesLevel == 2)):
+
+        logging.info("actions_handler()::FilesStore mode(level0) \'{0}\' command sent from user {1}"
+                     .format(message.text, message.from_user.full_name))
+        if message.text == '⤴️На уровень выше':
+            act.filesLevel = 0
+            act.currentDiscipline = ""
+            act.currentFolder = ""
+        if act.semester == 0:
+            act.semester = int(message.text[0])
+        disciplines_list = db.get_disciplines(message.from_user.id, act.semester)
         if disciplines_list:
             kb = act.generateDisciplinesKeyboard(disciplines_list)
             act.fLevelUp()
@@ -146,10 +142,62 @@ async def actions_handler(message: types.Message):
                                  parse_mode=ParseMode.MARKDOWN_V2)
         else:
             await message.answer("<Пусто>")
+    # Вывод файлов/папок 1 уровень
+    elif act.startFilesMode and (act.filesLevel == 1 or (act.filesLevel == 3 and message.text == '⤴️На уровень выше')):
+        logging.info("actions_handler()::FilesStore mode(level1) \'{0}\' command sent from user {1}"
+                     .format(message.text, message.from_user.full_name))
+        if message.text == '⤴️На уровень выше':
+            act.fLevelDown()
+            act.fLevelDown()
+            act.currentFolder = ""
+        if message.text != '⤴️На уровень выше':
+            act.currentDiscipline = message.text
+        folders_list = db.get_folders_by_discipline(message.from_user.id, act.semester, act.currentDiscipline)
+        if folders_list:
+            kb = act.generateFoldersKeyboard(folders_list)
+            await message.answer(text(bold("Выберите желаемый раздел")), reply_markup=kb,
+                                 parse_mode=ParseMode.MARKDOWN_V2)
+            act.fLevelUp()
 
+        else:
+            await message.answer("<Пусто>")
+    # Вывод файлов/папок 2 уровень
+    elif act.startFilesMode and (
+            (act.filesLevel == 2 and message.text != '⤴️На уровень выше') or (act.filesLevel == 4 and message.text == '⤴️На уровень выше')):
+        logging.info("actions_handler()::FilesStore2 mode(level{0}) \'{1}\' command sent from user {2}"
+                     .format(act.filesLevel, message.text, message.from_user.full_name))
+        if message.text == '⤴️На уровень выше':
+            act.fLevelDown()
+            act.fLevelDown()
+        if not act.currentFolder:
+            act.currentFolder = message.text[2:]
+
+        files_list = db.get_files_from_folder(message.from_user.id, act.semester, act.currentDiscipline,
+                                              act.currentFolder)
+        if files_list:
+            kb = act.generateFilesKeyboard(files_list)
+            await message.answer(text(bold("Выберите желаемый раздел")), reply_markup=kb,
+                                 parse_mode=ParseMode.MARKDOWN_V2)
+            act.fLevelUp()
+        else:
+            await message.answer("<Пусто>")
+    # Вывод файлов/папок 3 уровень
+    elif act.startFilesMode and (act.filesLevel == 3 and message.text != '⤴️На уровень выше'):
+        logging.info("actions_handler()::FilesStore mode(level3) \'{0}\' command sent from user {1}"
+                     .format(message.text, message.from_user.full_name))
+        file_record = db.get_file_record(message.from_user.id, act.semester, act.currentDiscipline, act.currentFolder,
+                                         message.text[2:])
+
+        if file_record:
+            file_page = act.generateFilePage(file_record)
+            kb = act.FolderLevelUpKeyboard()
+            await message.answer(file_page, reply_markup=kb)
+            act.fLevelUp()
+        else:
+            await message.answer("<Пусто>")
     else:
         logging.info("actions_handler():: UNKNOWN \'{0}\' command sent from user {1}"
-                     .format(message.text, message.from_user.id))
+                     .format(message.text, message.from_user.full_name))
         await message.answer("Неизвестная команда!")
 
 
