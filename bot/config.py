@@ -1,1 +1,1 @@
-API_TOKEN = '1438802988:AAH7V74stQKGb5GxLQkcG5iH76kZJZLtlGY' # bot token from @BotFather
+API_TOKEN = '' # bot token from @BotFather

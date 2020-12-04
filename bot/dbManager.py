@@ -13,11 +13,6 @@ class DbManager:
         self.connection = sqlite3.connect(database)
         self.cursor = self.connection.cursor()
 
-    def get_subscriptions(self, status=True):
-        """Получаем всех активных подписчиков бота"""
-        with self.connection:
-            return self.cursor.execute("SELECT * FROM `subscriptions` WHERE `status` = ?", (status,)).fetchall()
-
     def subscriber_exists(self, user_id):
         """Проверяем, есть ли уже юзер в базе"""
         with self.connection:
@@ -35,11 +30,6 @@ class DbManager:
         """Удаляем подписчика"""
         with self.connection:
             return self.cursor.execute('DELETE FROM `subscriptions` WHERE `user_id` = ?', (user_id,)).fetchall()
-
-    def update_subscription(self, user_id, status):
-        """Обновляем статус подписки пользователя"""
-        with self.connection:
-            return self.cursor.execute("UPDATE `subscriptions` SET `status` = ? WHERE `user_id` = ?", (status, user_id))
 
     def get_user_info(self, user_id):
         """Получаем всю информацию о пользователе"""
@@ -141,11 +131,3 @@ class DbManager:
     def close(self):
         """Закрываем соединение с БД"""
         self.connection.close()
-
-# db = DbManager("db.db")
-# print(db.get_disciplines(231905851))
-# db.get_disciplines(231905850)
-# a = db.search_by_name("Судоплатов")
-# act = Actions()
-# act.generateSearchPage(a)
-# db.get_file("CS292-1 Теория погрешностей.pdf")

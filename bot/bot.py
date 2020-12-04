@@ -26,6 +26,7 @@ async def subscribe(message: types.Message):
         await message.answer(text(bold('Привет!'), bold('Спасибо, что решил воспользоваться нашим ботом!'), sep='\n'),
                              parse_mode=ParseMode.MARKDOWN_V2)
         await message.answer("Напишите номер курса и группы через точку.  (x.x)")
+        await message.answer("Обращаем ваше внимание, что в данный момент корректно работают только группы 2.7, 2.8, 2.9!")
         act.startReg()
 
     else:
@@ -39,9 +40,19 @@ async def showHelp(message: types.Message):
     logging.info("/help command sent from user {0}".format(message.from_user.full_name))
     act.reset()
     await message.answer(text("Список команд:", "/files —  учебные материалы", "/search —  поиск по названию",
-                              "/admin —  стать админом[TEST]",
-                              "/upload — загрузка файлов", "/forget — сброс данных пользователя",
+                              "/forget — сброс данных пользователя",
                               "/info —  информация о боте", sep='\n'))
+
+
+@dp.message_handler(commands=['info'])
+async def showHelp(message: types.Message):
+    logging.info("/info command sent from user {0}".format(message.from_user.full_name))
+    act.reset()
+    await message.answer(text("Бот разработан в рамках ПД 20/21", "Состав команды: ", "Протопопов Алексей, 2 курс",
+                              "Щепалов Владимир, 2 курс", "Татаренко Владимир, 1 курс", "Тищенко Артëм, 1 курс",
+                              "Новиков Александр,1 курс", "Обратная связь: @protopych", sep='\n'))
+    await message.answer(
+        "Что сейчас работает:\nНавигация по файлам(/files)\nПоиск по файлам(/search)\nСкачивание файлов\n")
 
 
 @dp.message_handler(commands=['files'])
@@ -69,6 +80,32 @@ async def search(message: types.Message):
     logging.info("/search command sent from user {0}".format(message.from_user.full_name))
     act.startSearch()
     await message.answer("Что будем искать?")
+
+
+@dp.callback_query_handler(lambda c: c.data == 'right')
+async def process_callback_button_right(callback_query: types.CallbackQuery):
+    await bot.answer_callback_query(callback_query.id)
+    act.search_pages_position += 1
+    pages = "\n".join(act.search_pages[act.search_pages_position:act.search_pages_position + 4])
+    pages += "\n Страница {0}/{1}".format(act.search_pages_position + 1, act.search_pages_count)
+    if act.search_pages_position == act.search_pages_count - 1:
+        kb = act.searchKeyboardEnd()
+    else:
+        kb = act.searchKeyboardMid()
+    await bot.send_message(callback_query.from_user.id, pages, reply_markup=kb)
+
+
+@dp.callback_query_handler(lambda c: c.data == 'left')
+async def process_callback_button_left(callback_query: types.CallbackQuery):
+    await bot.answer_callback_query(callback_query.id)
+    act.search_pages_position -= 1
+    pages = "\n".join(act.search_pages[act.search_pages_position:act.search_pages_position + 4])
+    pages += "\n Страница {0}/{1}".format(act.search_pages_position + 1, act.search_pages_count)
+    if act.search_pages_position == 0:
+        kb = act.searchKeyboardBegin()
+    else:
+        kb = act.searchKeyboardMid()
+    await bot.send_message(callback_query.from_user.id, pages, reply_markup=kb)
 
 
 @dp.message_handler()
@@ -102,9 +139,19 @@ async def actions_handler(message: types.Message):
         else:
             dbResponse = db.search_by_name(message.text)
             results = act.generateSearchPage(dbResponse)
+            results = "\n".join(results[0:4])
+            results += "\n Страница {0}/{1}".format(act.search_pages_position + 1, act.search_pages_count)
             await message.answer(f"Найдено результатов: {len(results)}")
-            await message.answer("\n".join(results))
-            act.stopSearch()
+            if act.search_pages_count == 0:
+                await message.answer("Ничего не найдено!")
+            else:
+                if act.search_pages_count == 1:
+                    kb = types.InlineKeyboardMarkup()
+                else:
+                    kb = act.searchKeyboardBegin()
+
+                msg = await message.answer(results, reply_markup=kb)
+                act.stopSearch()
     # Отправка файла пользователю
     elif message.text.startswith("/download"):
         logging.info("actions_handler()::sendFile mode \'{0}\' command sent from user {1}"
@@ -124,7 +171,8 @@ async def actions_handler(message: types.Message):
         await message.answer(text(bold("Выберите семестр")), reply_markup=semesters_kb,
                              parse_mode=ParseMode.MARKDOWN_V2)
 
-    elif act.startFilesMode and (act.filesLevel == 0 and message.text in ('1 семестр', '2 семестр',) or (message.text == '⤴️На уровень выше' and act.filesLevel == 2)):
+    elif act.startFilesMode and (act.filesLevel == 0 and message.text in ('1 семестр', '2 семестр',) or (
+            message.text == '⤴️На уровень выше' and act.filesLevel == 2)):
 
         logging.info("actions_handler()::FilesStore mode(level0) \'{0}\' command sent from user {1}"
                      .format(message.text, message.from_user.full_name))
@@ -163,7 +211,8 @@ async def actions_handler(message: types.Message):
             await message.answer("<Пусто>")
     # Вывод файлов/папок 2 уровень
     elif act.startFilesMode and (
-            (act.filesLevel == 2 and message.text != '⤴️На уровень выше') or (act.filesLevel == 4 and message.text == '⤴️На уровень выше')):
+            (act.filesLevel == 2 and message.text != '⤴️На уровень выше') or (
+            act.filesLevel == 4 and message.text == '⤴️На уровень выше')):
         logging.info("actions_handler()::FilesStore2 mode(level{0}) \'{1}\' command sent from user {2}"
                      .format(act.filesLevel, message.text, message.from_user.full_name))
         if message.text == '⤴️На уровень выше':
@@ -200,23 +249,6 @@ async def actions_handler(message: types.Message):
                      .format(message.text, message.from_user.full_name))
         await message.answer("Неизвестная команда!")
 
-
-# @dp.message_handler(commands=['files'])
-# async def sendFile1(message: types.Message):
-# await message.answer("files")
-# user_id = message.from_user.id
-# msg = text(bold('Я могу ответить на следующие команды:'),
-#      '/voice', '/photo', '/group', '/note', '/file, /testpre', sep='\n')
-# await message.reply(msg, parse_mode=ParseMode.MARKDOWN)
-
-
-# doc = open("test.pdf", 'rb')
-# await bot.send_chat_action(user_id, types.ChatActions.UPLOAD_DOCUMENT)
-# await asyncio.sleep(3)  # скачиваем файл и отправляем его пользователю
-# msg = await bot.send_document(user_id, doc,
-# caption='Этот файл специально для тебя!')
-# file_id = getattr(msg, file_attr).file_id
-# print(file_id)
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)

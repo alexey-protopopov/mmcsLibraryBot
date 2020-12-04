@@ -10,12 +10,17 @@ course2 = {1: directions[0], 2: directions[0], 3: directions[0], 4: directions[0
            10: directions[4],
            11: directions[4], 12: directions[4], 13: directions[4]}
 
+inline_btn_right = InlineKeyboardButton('➡️', callback_data='right')
+inline_btn_left = InlineKeyboardButton('⬅️', callback_data='left')
+
 
 class Actions:
     registrationStarted = False
     searchStarted = False
     filesMode = False
     search_pages = []
+    search_pages_count = 0
+    search_pages_position = 1
     filesLevel = 0
     semester = 0
     currentDiscipline = ""
@@ -56,6 +61,8 @@ class Actions:
         self.semester = 0
         self.currentDiscipline = ""
         self.currentFolder = ""
+        self.search_pages_count = 0
+        self.search_pages_position = 0
 
     @staticmethod
     def generateFilePage(file):
@@ -72,6 +79,7 @@ class Actions:
                 return "Ничего не найдено."
         if len(self.search_pages) == 0:
             return "Ничего не найдено."
+        self.search_pages_count = len(self.search_pages) // 4 + len(self.search_pages) % 4
         return self.search_pages
 
     @staticmethod
@@ -118,3 +126,19 @@ class Actions:
         up = KeyboardButton('⤴️На уровень выше')
         kb.add(up)
         return kb
+
+    @staticmethod
+    def searchKeyboardBegin():
+        inline_kb1 = InlineKeyboardMarkup().add(inline_btn_right)
+        return inline_kb1
+
+    @staticmethod
+    def searchKeyboardEnd():
+        inline_kb2 = InlineKeyboardMarkup().add(inline_btn_left)
+        return inline_kb2
+
+    @staticmethod
+    def searchKeyboardMid():
+        inline_kb3 = InlineKeyboardMarkup(row_width=2).add(inline_btn_left, inline_btn_right)
+        # inline_kb3.row(inline_btn_left, inline_btn_right)
+        return inline_kb3
