@@ -16,6 +16,8 @@ db = DbManager('db.db')
 logging.basicConfig(level=logging.INFO, format=u'%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 act = Actions()
 
+AGENT_ID = 1738887702
+
 
 # 1)Приветствие Пользователя, выбор курса, группы, по умолчанию, семестр(Посмотреть форматирование текста tg)
 @dp.message_handler(commands=['start'])
@@ -41,8 +43,8 @@ async def showHelp(message: types.Message):
     logging.info("/help command sent from user {0}".format(message.from_user.full_name))
     act.reset(message.from_user.id)
     await message.answer(text("Список команд:", "/files —  учебные материалы", "/search —  поиск по названию",
-                              "/forget — сброс данных пользователя",
-                              "/info —  информация о боте", sep='\n'))
+                              "/forget — сброс данных пользователя", "/admin — получить права админа[TEST]"
+                                                                     "/info —  информация о боте", sep='\n'))
 
 
 @dp.message_handler(commands=['info'])
@@ -112,6 +114,69 @@ async def process_callback_button_left(callback_query: types.CallbackQuery):
     await bot.send_message(callback_query.from_user.id, pages, reply_markup=kb)
 
 
+# скачивает файл
+@dp.message_handler(content_types=['document'])
+async def upload_doc(message: types.Message):
+    logging.info(
+        "/upload_doc command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
+    if act.isUploadMode(message.from_user.id) and (act.semester(message.from_user.id) != 0) and (
+            act.currentDiscipline(message.from_user.id) != "") and (
+            act.currentFolder(message.from_user.id)) != "":
+        document_id = message.document.file_id
+        try:
+            file_info = await bot.get_file(document_id)
+        except Exception as e:
+            await message.answer("Ошибка при загрузке!(size > 20 мб?)")
+            print(e)
+            act.reset(message.from_user.id)
+            return
+
+        fi = file_info.file_path
+        name = message.document.file_name
+        await bot.download_file(fi, name)
+        with open(name, 'rb') as file:
+            try:
+                msg = await bot.send_document(AGENT_ID, file, disable_notification=True)
+                file_id = getattr(msg, 'document').file_id
+                db.add_file(file_id, name, db.get_user_info(message.from_user.id)[3],
+                            db.get_user_info(message.from_user.id)[4],
+                            act.semester(message.from_user.id), act.currentDiscipline(message.from_user.id),
+                            act.currentFolder(message.from_user.id), message.from_user.id)
+                report = f'Successfully uploaded by {message.from_user.full_name}({message.from_user.id})and saved to DB file {name} with id {file_id}'
+                logging.info(report)
+                await bot.send_message(AGENT_ID, report)
+                act.reset(message.from_user.id)
+                await message.answer("Загрузка успешно завершена!")
+            except Exception as e:
+                logging.error('Couldn\'t upload {}. Error is {}'.format(fname, e))
+                act.reset(message.from_user.id)
+    else:
+        await message.answer("Не соблюдены все условия!")
+
+
+@dp.message_handler(commands=['upload'])
+async def upload(message: types.Message):
+    logging.info("/upload command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
+    act.reset(message.from_user.id)
+    if db.get_user_info(message.from_user.id)[2] == 1:
+        await message.answer("Режим загрузки!")
+        act.startUpload(message.from_user.id)
+        semesters_kb = act.semestersKeyboard()
+        await message.answer(text(bold("Выберите семестр")), reply_markup=semesters_kb,
+                             parse_mode=ParseMode.MARKDOWN_V2)
+
+    else:
+        await message.answer("Недостаточно прав, используйте /admin, чтобы получить права на загрузку")
+
+
+@dp.message_handler(commands=['admin'])
+async def admin(message: types.Message):
+    logging.info("/admin command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
+    act.reset(message.from_user.id)
+    db.set_admin(message.from_user.id)
+    await message.answer("Вы стали админом!")
+
+
 @dp.message_handler()
 async def actions_handler(message: types.Message):
     # Регистрация пользователя
@@ -133,6 +198,7 @@ async def actions_handler(message: types.Message):
             db.add_subscriber(message.from_user.id, 0, course, group)
             act.stopReg(message.from_user.id)
             await message.answer("Вы успешно зарегистрировались!\n Используйте /help для просмотра списка команд.")
+
     # Поиск по названию
     elif act.searchStarted(message.from_user.id):
         # act.reset(message.from_user.id)
@@ -159,6 +225,7 @@ async def actions_handler(message: types.Message):
 
                 msg = await message.answer(results, reply_markup=kb)
                 act.stopSearch(message.from_user.id)
+
     # Отправка файла пользователю
     elif message.text.startswith("/download"):
         logging.info("actions_handler()::sendFile mode \'{0}\' command sent from user {1}"
@@ -284,6 +351,47 @@ async def actions_handler(message: types.Message):
             else:
                 act.reset(message.from_user.id)
                 await message.answer("<Пусто4>")
+
+    elif act.isUploadMode(message.from_user.id):
+        logging.info("actions_handler()::Upload mode \'{0}\' command sent from user {1}({2})"
+                     .format(message.text, message.from_user.full_name, message.from_user.id))
+
+        if act.semester(message.from_user.id) == 0 and message.text[0] in ('1', '2'):
+            act.statements[message.from_user.id]["semester"] = int(message.text[0])
+            disciplines_list = db.get_disciplines(message.from_user.id, act.semester(message.from_user.id))
+            print(act.semester(message.from_user.id), disciplines_list)
+            if disciplines_list:
+                kb = act.generateDisciplinesKeyboard(disciplines_list)
+                await message.answer(text(bold("Выберите желаемый предмет:")), reply_markup=kb,
+                                     parse_mode=ParseMode.MARKDOWN_V2)
+            else:
+                act.reset(message.from_user.id)
+                await message.answer("Не удалось получить список дисциплин!")
+
+        elif act.currentDiscipline(message.from_user.id) == "":
+            act.statements[message.from_user.id]["currentDiscipline"] = message.text
+            folders_list = db.get_folders_by_discipline(message.from_user.id, act.semester(message.from_user.id),
+                                                        act.currentDiscipline(message.from_user.id))
+            if folders_list:
+                kb = act.generateFoldersKeyboard(folders_list)
+                act.fLevelUp(message.from_user.id)
+                await message.answer(text(bold("Выберите желаемый раздел:")), reply_markup=kb,
+                                     parse_mode=ParseMode.MARKDOWN_V2)
+            else:
+                act.reset(message.from_user.id)
+                await message.answer("Не удалось получить список разделов!")
+
+        elif act.currentFolder(message.from_user.id) == "":
+            act.statements[message.from_user.id]["currentFolder"] = message.text[2:]
+            # Нужна проверка на дурака
+            if (act.semester(message.from_user.id) != 0) and (act.currentDiscipline(message.from_user.id) != "") and (
+                    act.currentFolder(message.from_user.id)) != "":
+                await message.answer("Файл будет загружен в \n{0} семестр\\{1}\\{2}\\".format(
+                    act.semester(message.from_user.id), act.currentDiscipline(message.from_user.id),
+                    act.currentFolder(message.from_user.id)))
+                await message.answer("Размер загружаемого файла —  не более 20 Мб!")
+                await message.answer("Ожидание отправки...")
+
 
     else:
         logging.info("actions_handler():: UNKNOWN \'{0}\' command sent from user {1}"

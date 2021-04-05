@@ -26,6 +26,12 @@ class DbManager:
                 "INSERT INTO `subscriptions` (`user_id`, `access_level`, `course`,`group`) VALUES(?,?,?,?)",
                 (user_id, 0, course, group))
 
+    def set_admin(self, user_id):
+        """Назначаем пользователя админом"""
+        with self.connection:
+            return self.cursor.execute('UPDATE `subscriptions` SET `access_level` = 1 WHERE `user_id` = ?',
+                                       (user_id,)).fetchall()
+
     def delete_subscriber(self, user_id):
         """Удаляем подписчика"""
         with self.connection:
