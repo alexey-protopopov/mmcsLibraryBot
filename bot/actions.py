@@ -15,54 +15,114 @@ inline_btn_left = InlineKeyboardButton('⬅️', callback_data='left')
 
 
 class Actions:
-    registrationStarted = False
-    searchStarted = False
-    filesMode = False
-    search_pages = []
-    search_pages_count = 0
-    search_pages_position = 1
-    filesLevel = 0
-    semester = 0
-    currentDiscipline = ""
-    currentFolder = ""
+    statements = {}
 
-    def startReg(self):
-        self.registrationStarted = True
+    # registrationStarted = False
+    # searchStarted = False
+    # filesMode = False
+    # search_pages = []
+    # search_pages_count = 0
+    # search_pages_position = 1
+    # filesLevel = 0
+    # semester = 0
+    # currentDiscipline = ""
+    # currentFolder = ""
 
-    def stopReg(self):
-        self.registrationStarted = False
+    def uid_check(self, uid):
+        if self.statements.get(uid) is None:
+            self.reset(uid)
 
-    def startSearch(self):
-        self.searchStarted = True
+    def registrationStarted(self, uid):
+        self.uid_check(uid)
+        return self.statements[uid]["registrationStarted"]
 
-    def stopSearch(self):
-        self.searchStarted = False
+    def search_pages_position(self, uid):
+        self.uid_check(uid)
+        return self.statements[uid]["search_pages_position"]
 
-    def startFilesMode(self):
-        self.filesMode = True
+    def search_pages_count(self, uid):
+        self.uid_check(uid)
+        return self.statements[uid]["search_pages_count"]
 
-    def stopFilesMode(self):
-        self.filesMode = False
+    def filesLevel(self, uid):
+        self.uid_check(uid)
+        return self.statements[uid]["filesLevel"]
 
-    def fLevelUp(self):
-        if self.filesLevel in range(0, 4):
-            self.filesLevel += 1
+    def currentFolder(self, uid):
+        self.uid_check(uid)
+        return self.statements[uid]["currentFolder"]
 
-    def fLevelDown(self):
-        if self.filesLevel in range(1, 5):
-            self.filesLevel -= 1
+    def semester(self, uid):
+        self.uid_check(uid)
+        return self.statements[uid]["semester"]
 
-    def reset(self):
-        self.searchStarted = False
-        self.registrationStarted = False
-        self.filesMode = False
-        self.search_pages = []
-        self.filesLevel = 0
-        self.semester = 0
-        self.currentDiscipline = ""
-        self.currentFolder = ""
-        self.search_pages_count = 0
-        self.search_pages_position = 0
+    def currentDiscipline(self, uid):
+        self.uid_check(uid)
+        return self.statements[uid]["currentDiscipline"]
+
+    def searchStarted(self, uid):
+        self.uid_check(uid)
+        return self.statements[uid]["searchStarted"]
+
+    def isFilesMode(self, uid):
+        self.uid_check(uid)
+        return self.statements[uid]["filesMode"]
+
+    def startReg(self, uid):
+        self.uid_check(uid)
+        self.statements[uid]["registrationStarted"] = True
+
+    def stopReg(self, uid):
+        self.uid_check(uid)
+        self.statements[uid]["registrationStarted"] = False
+
+    def startSearch(self, uid):
+        self.uid_check(uid)
+        self.statements[uid]["searchStarted"] = True
+
+    def stopSearch(self, uid):
+        self.uid_check(uid)
+        self.statements[uid]["searchStarted"] = False
+
+    def startFilesMode(self, uid):
+        self.uid_check(uid)
+        self.statements[uid]["filesMode"] = True
+        self.statements[uid]["filesLevel"] = 1
+
+    def stopFilesMode(self, uid):
+        self.uid_check(uid)
+        self.statements[uid]["filesMode"] = False
+
+    def fLevelUp(self, uid, text=""):
+        self.uid_check(uid)
+        # if text == '⤴️На уровень выше':
+        # return
+        if self.statements[uid]["filesLevel"] in range(0, 5):
+            self.statements[uid]["filesLevel"] += 1
+
+    def fLevelDown(self, uid):
+        self.uid_check(uid)
+
+        if self.statements[uid]["filesLevel"] == 4:  # 4->3
+            self.statements[uid]["filesLevel"] -= 1
+
+        elif self.statements[uid]["filesLevel"] == 4:  # 3->2
+            self.statements[uid]["filesLevel"] = 2
+            self.statements[uid]["currentFolder"] = ""
+
+        elif self.statements[uid]["filesLevel"] == 3:  # 2->1
+            self.statements[uid]["filesLevel"] = 1
+            self.statements[uid]["currentDiscipline"] = ""
+
+        elif self.statements[uid]["filesLevel"] == 2 or self.statements[uid]["filesLevel"] == 1:  # 1->0
+            self.statements[uid]["filesLevel"] = 0
+            # self.statements[uid]["semester"] = ""
+
+    def reset(self, uid):
+        self.statements[uid] = {"registrationStarted": False, "searchStarted": False, "filesMode": False,
+                                "search_pages": [], "search_pages_count": 0, "search_pages_position": 1,
+                                "filesLevel": 0,
+                                "semester": 0, "currentDiscipline": "", "currentFolder": ""}
 
     @staticmethod
     def generateFilePage(file):
@@ -70,17 +130,21 @@ class Actions:
                f"{file[4]} семестр.\nСкачать файл: /download{file[7]}\n"
         return page
 
-    def generateSearchPage(self, resp):
+    def generateSearchPage(self, resp, uid):
         for file in resp:
             try:
                 page = self.generateFilePage(file)
-                self.search_pages.append(page)
+                self.statements[uid]["search_pages"].append(page)
             except IndexError:
-                return "Ничего не найдено."
-        if len(self.search_pages) == 0:
-            return "Ничего не найдено."
-        self.search_pages_count = len(self.search_pages) // 4 + len(self.search_pages) % 4
-        return self.search_pages
+                return []
+        search_pages_len = len(self.statements[uid]["search_pages"])
+        if search_pages_len == 0:
+            return []
+        elif search_pages_len % 4 == 0:
+            self.statements[uid]["search_pages_count"] = search_pages_len // 4
+        else:
+            self.statements[uid]["search_pages_count"] = search_pages_len // 4 + 1
+        return self.statements[uid]["search_pages"]
 
     @staticmethod
     def generateDisciplinesKeyboard(disciplines):
