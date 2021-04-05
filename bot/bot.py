@@ -274,10 +274,13 @@ async def actions_handler(message: types.Message):
                                              act.currentFolder(message.from_user.id),
                                              message.text[2:])
             if file_record:
-                file_page = act.generateFilePage(file_record)
+                file_page = act.generateFilePage2(file_record)
                 kb = act.FolderLevelUpKeyboard()
                 act.fLevelUp(message.from_user.id)
+                file_id = db.get_file(file_record[7])
                 await message.answer(file_page, reply_markup=kb)
+                await bot.send_document(message.from_user.id, file_id)
+
             else:
                 act.reset(message.from_user.id)
                 await message.answer("<Пусто4>")

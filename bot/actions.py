@@ -100,24 +100,6 @@ class Actions:
         if self.statements[uid]["filesLevel"] in range(0, 5):
             self.statements[uid]["filesLevel"] += 1
 
-    def fLevelDown(self, uid):
-        self.uid_check(uid)
-
-        if self.statements[uid]["filesLevel"] == 4:  # 4->3
-            self.statements[uid]["filesLevel"] -= 1
-
-        elif self.statements[uid]["filesLevel"] == 4:  # 3->2
-            self.statements[uid]["filesLevel"] = 2
-            self.statements[uid]["currentFolder"] = ""
-
-        elif self.statements[uid]["filesLevel"] == 3:  # 2->1
-            self.statements[uid]["filesLevel"] = 1
-            self.statements[uid]["currentDiscipline"] = ""
-
-        elif self.statements[uid]["filesLevel"] == 2 or self.statements[uid]["filesLevel"] == 1:  # 1->0
-            self.statements[uid]["filesLevel"] = 0
-            # self.statements[uid]["semester"] = ""
-
     def reset(self, uid):
         self.statements[uid] = {"registrationStarted": False, "searchStarted": False, "filesMode": False,
                                 "search_pages": [], "search_pages_count": 0, "search_pages_position": 1,
@@ -128,6 +110,12 @@ class Actions:
     def generateFilePage(file):
         page = f"Название: {file[1]}\nПредмет: {file[5]}, раздел: {file[6]}.\n{file[2]} курс {course2[file[3]]}, " \
                f"{file[4]} семестр.\nСкачать файл: /download{file[7]}\n"
+        return page
+
+    @staticmethod
+    def generateFilePage2(file):
+        page = f"Название: {file[1]}\nПредмет: {file[5]}, раздел: {file[6]}.\n{file[2]} курс {course2[file[3]]}, " \
+               f"{file[4]} семестр.\n"
         return page
 
     def generateSearchPage(self, resp, uid):
