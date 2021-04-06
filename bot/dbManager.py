@@ -19,12 +19,24 @@ class DbManager:
             result = self.cursor.execute('SELECT * FROM `subscriptions` WHERE `user_id` = ?', (user_id,)).fetchall()
             return bool(len(result))
 
+    def folder_exists(self, dir_name):
+        """Проверяем, есть ли указанная папка в базе"""
+        with self.connection:
+            result = self.cursor.execute('SELECT * FROM `files` WHERE `dir_name` = ?', (dir_name,)).fetchall()
+            return bool(len(result))
+
     def add_subscriber(self, user_id, status, course, group):
         """Добавляем нового подписчика"""
         with self.connection:
             return self.cursor.execute(
                 "INSERT INTO `subscriptions` (`user_id`, `access_level`, `course`,`group`) VALUES(?,?,?,?)",
                 (user_id, 0, course, group))
+
+    def set_admin(self, user_id):
+        """Назначаем пользователя админом"""
+        with self.connection:
+            return self.cursor.execute('UPDATE `subscriptions` SET `access_level` = 1 WHERE `user_id` = ?',
+                                       (user_id,)).fetchall()
 
     def delete_subscriber(self, user_id):
         """Удаляем подписчика"""
