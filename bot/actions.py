@@ -68,6 +68,10 @@ class Actions:
         self.uid_check(uid)
         return self.statements[uid]["filesMode"]
 
+    def isUploadMode(self, uid):
+        self.uid_check(uid)
+        return self.statements[uid]["uploadStarted"]
+
     def startReg(self, uid):
         self.uid_check(uid)
         self.statements[uid]["registrationStarted"] = True
@@ -79,6 +83,14 @@ class Actions:
     def startSearch(self, uid):
         self.uid_check(uid)
         self.statements[uid]["searchStarted"] = True
+
+    def startUpload(self, uid):
+        self.uid_check(uid)
+        self.statements[uid]["uploadStarted"] = True
+
+    def stopUpload(self, uid):
+        self.uid_check(uid)
+        self.statements[uid]["uploadStarted"] = False
 
     def stopSearch(self, uid):
         self.uid_check(uid)
@@ -104,7 +116,7 @@ class Actions:
         self.statements[uid] = {"registrationStarted": False, "searchStarted": False, "filesMode": False,
                                 "search_pages": [], "search_pages_count": 0, "search_pages_position": 1,
                                 "filesLevel": 0,
-                                "semester": 0, "currentDiscipline": "", "currentFolder": ""}
+                                "semester": 0, "currentDiscipline": "", "currentFolder": "", "uploadStarted": False}
 
     @staticmethod
     def generateFilePage(file):
