@@ -72,6 +72,14 @@ class Actions:
         self.uid_check(uid)
         return self.statements[uid]["uploadStarted"]
 
+    def isMkdirMode(self, uid):
+        self.uid_check(uid)
+        return self.statements[uid]["mkdirStarted"]
+
+    def isRmdirMode(self, uid):
+        self.uid_check(uid)
+        return self.statements[uid]["rmdirStarted"]
+
     def isDeleteMode(self, uid):
         self.uid_check(uid)
         return self.statements[uid]["deleteStarted"]
@@ -95,6 +103,14 @@ class Actions:
     def startDelete(self, uid):
         self.uid_check(uid)
         self.statements[uid]["deleteStarted"] = True
+
+    def startMkdir(self, uid):
+        self.uid_check(uid)
+        self.statements[uid]["mkdirStarted"] = True
+
+    def startRmdir(self, uid):
+        self.uid_check(uid)
+        self.statements[uid]["rmdirStarted"] = True
 
     def stopUpload(self, uid):
         self.uid_check(uid)
@@ -125,7 +141,7 @@ class Actions:
                                 "search_pages": [], "search_pages_count": 0, "search_pages_position": 1,
                                 "filesLevel": 0,
                                 "semester": 0, "currentDiscipline": "", "currentFolder": "", "uploadStarted": False,
-                                "deleteStarted": False}
+                                "deleteStarted": False, "mkdirStarted": False, "rmdirStarted": False}
 
     @staticmethod
     def generateFilePage(file):

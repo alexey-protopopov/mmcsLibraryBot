@@ -45,9 +45,8 @@ async def showHelp(message: types.Message):
     act.reset(message.from_user.id)
     await message.answer(text("Список команд:", "/files —  учебные материалы", "/search —  поиск по названию",
                               "/forget — сброс данных пользователя", "/admin — получить права админа[TEST]",
-                              "/upload — загрузить файл", "/delete — удалить файл", "/mkdir — создать папку"
-                                                                                    "\n/info —  информация о боте",
-                              sep='\n'))
+                              "/upload — загрузить файл", "/delete — удалить файл", "/mkdir — создать папку",
+                              "/rmdir — удалить папку", "/info —  информация о боте", sep='\n'))
 
 
 @dp.message_handler(commands=['info'])
@@ -128,7 +127,6 @@ async def upload_doc(message: types.Message):
             act.currentFolder(message.from_user.id)) != "":
         document_id = message.document.file_id
         name = message.document.file_name
-        print(name)
         if db.file_exists(name, act.currentDiscipline(message.from_user.id), act.currentFolder(message.from_user.id)):
             await message.answer("Такой файл уже существует!")
             act.reset(message.from_user.id)
@@ -171,7 +169,7 @@ async def upload(message: types.Message):
     logging.info("/upload command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
     act.reset(message.from_user.id)
     if db.get_user_info(message.from_user.id)[2] == 1:
-        await message.answer("Режим загрузки!")
+        await message.answer("[Режим загрузки]")
         act.startUpload(message.from_user.id)
         semesters_kb = act.semestersKeyboard()
         await message.answer(text(bold("Выберите семестр")), reply_markup=semesters_kb,
@@ -181,12 +179,42 @@ async def upload(message: types.Message):
         await message.answer("Недостаточно прав, используйте /admin, чтобы получить права на загрузку")
 
 
+@dp.message_handler(commands=['mkdir'])
+async def mkdir(message: types.Message):
+    logging.info("/mkdir command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
+    act.reset(message.from_user.id)
+    if db.get_user_info(message.from_user.id)[2] == 1:
+        await message.answer("[Создание новой папки]")
+        act.startMkdir(message.from_user.id)
+        semesters_kb = act.semestersKeyboard()
+        await message.answer(text(bold("Выберите семестр")), reply_markup=semesters_kb,
+                             parse_mode=ParseMode.MARKDOWN_V2)
+
+    else:
+        await message.answer("Недостаточно прав, используйте /admin, чтобы получить права")
+
+
+@dp.message_handler(commands=['rmdir'])
+async def rmdir(message: types.Message):
+    logging.info("/rmdir command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
+    act.reset(message.from_user.id)
+    if db.get_user_info(message.from_user.id)[2] == 1:
+        await message.answer("[Удаление папки]")
+        act.startRmdir(message.from_user.id)
+        semesters_kb = act.semestersKeyboard()
+        await message.answer(text(bold("Выберите семестр")), reply_markup=semesters_kb,
+                             parse_mode=ParseMode.MARKDOWN_V2)
+
+    else:
+        await message.answer("Недостаточно прав, используйте /admin, чтобы получить права")
+
+
 @dp.message_handler(commands=['delete'])
 async def delete(message: types.Message):
     logging.info("/delete command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
     act.reset(message.from_user.id)
     if db.get_user_info(message.from_user.id)[2] == 1:
-        await message.answer("Режим удаления!")
+        await message.answer("[Режим удаления]")
         act.startDelete(message.from_user.id)
         semesters_kb = act.semestersKeyboard()
         await message.answer(text(bold("Выберите семестр: ")), reply_markup=semesters_kb,
@@ -211,7 +239,6 @@ async def actions_handler(message: types.Message):
         logging.info("actions_handler()::setCourseAndGroup mode \'{0}\' command sent from user {1}"
                      .format(message.text, message.from_user.full_name))
         userInput = message.text.split('.')
-        print(userInput)
         try:
             course = int(userInput[0])
             group = int(userInput[1])
@@ -228,7 +255,6 @@ async def actions_handler(message: types.Message):
 
     # Поиск по названию
     elif act.searchStarted(message.from_user.id):
-        # act.reset(message.from_user.id)
         logging.info("actions_handler()::search mode \'{0}\' command sent from user {1}"
                      .format(message.text, message.from_user.full_name))
         if not len(message.text):
@@ -236,7 +262,7 @@ async def actions_handler(message: types.Message):
         else:
             dbResponse = db.search_by_name(message.text)
             results = act.generateSearchPage(dbResponse, message.from_user.id)
-            print(results)
+            # print(results)
             if results:
                 await message.answer(f"Найдено результатов: {len(results)}")
             results = "\n".join(results[0:4])
@@ -268,14 +294,14 @@ async def actions_handler(message: types.Message):
     # /files
     elif act.isFilesMode(message.from_user.id):
 
-        print(act.statements[message.from_user.id])
+        # print(act.statements[message.from_user.id])
 
         # Вывод файлов/папок 0 уровень[выбор семестра]
         if act.filesLevel(message.from_user.id) == 0 or ((act.filesLevel(message.from_user.id) == 1 or act.filesLevel(
                 message.from_user.id) == 2) and message.text == '⤴️На уровень выше'):
             logging.info("actions_handler()::FilesStore mode(level0) \'{0}\' command sent from user {1}({2})"
                          .format(message.text, message.from_user.full_name, message.from_user.id))
-            print("l0 start ", act.statements[message.from_user.id])
+            # print("l0 start ", act.statements[message.from_user.id])
 
             act.reset(message.from_user.id)
             act.startFilesMode(message.from_user.id)
@@ -283,7 +309,7 @@ async def actions_handler(message: types.Message):
             await message.answer(text(bold("Выберите семестр:")), reply_markup=semesters_kb,
                                  parse_mode=ParseMode.MARKDOWN_V2)
 
-            print("l0 end ", act.statements[message.from_user.id])
+        #  print("l0 end ", act.statements[message.from_user.id])
         # Вывод файлов/папок 1 уровень[вывод доступных предметов в семестре]
         elif act.filesLevel(message.from_user.id) == 1 or (
                 act.filesLevel(message.from_user.id) == 3 and message.text == '⤴️На уровень выше'):
@@ -297,9 +323,9 @@ async def actions_handler(message: types.Message):
                     act.statements[message.from_user.id]["semester"] = int(message.text[0])
                 except ValueError:
                     act.reset(message.from_user.id)
-                    await message.answer("Неизвестная команда(act.semester(message.from_user.id) == 0 lvl1)")
+                    await message.answer("Неверные данные!")
             disciplines_list = db.get_disciplines(message.from_user.id, act.semester(message.from_user.id))
-            print("l1 ", act.statements[message.from_user.id])
+            # print("l1 ", act.statements[message.from_user.id])
             if disciplines_list:
                 kb = act.generateDisciplinesKeyboard(disciplines_list)
 
@@ -309,7 +335,7 @@ async def actions_handler(message: types.Message):
 
             else:
                 act.reset(message.from_user.id)
-                await message.answer("<Пусто1>")
+                await message.answer("<Пусто>")
 
         # Вывод файлов/папок 2 уровень[вывод доступных подразделов для выбранного предмета]
         elif act.filesLevel(message.from_user.id) == 2 or (
@@ -324,7 +350,7 @@ async def actions_handler(message: types.Message):
                 act.statements[message.from_user.id]["currentDiscipline"] = message.text
             folders_list = db.get_folders_by_discipline(message.from_user.id, act.semester(message.from_user.id),
                                                         act.currentDiscipline(message.from_user.id))
-            print("l2 ", act.statements[message.from_user.id])
+            # print("l2 ", act.statements[message.from_user.id])
             if folders_list:
                 kb = act.generateFoldersKeyboard(folders_list)
                 act.fLevelUp(message.from_user.id)
@@ -332,7 +358,7 @@ async def actions_handler(message: types.Message):
                                      parse_mode=ParseMode.MARKDOWN_V2)
             else:
                 act.reset(message.from_user.id)
-                await message.answer("<Пусто2>")
+                await message.answer("<Пусто>")
 
         # Вывод файлов/папок 3 уровень[вывод файлов из папки]
         elif act.filesLevel(message.from_user.id) == 3 or (
@@ -349,7 +375,7 @@ async def actions_handler(message: types.Message):
                                                   act.currentDiscipline(message.from_user.id),
                                                   act.currentFolder(message.from_user.id))
 
-            print("l3 ", act.statements[message.from_user.id])
+            # print("l3 ", act.statements[message.from_user.id])
             if files_list:
                 kb = act.generateFilesKeyboard(files_list)
                 act.fLevelUp(message.from_user.id)
@@ -357,7 +383,7 @@ async def actions_handler(message: types.Message):
                                      parse_mode=ParseMode.MARKDOWN_V2)
             else:
                 act.reset(message.from_user.id)
-                await message.answer("<Пусто3>")
+                await message.answer("<Пусто>")
 
         # Вывод файлов/папок 4 уровень[страница с информацией о файле]
         elif act.filesLevel(message.from_user.id) == 4:
@@ -377,7 +403,7 @@ async def actions_handler(message: types.Message):
 
             else:
                 act.reset(message.from_user.id)
-                await message.answer("<Пусто4>")
+                await message.answer("<Пусто>")
 
     # Выбор пути для загрузки
     elif act.isUploadMode(message.from_user.id):
@@ -428,7 +454,7 @@ async def actions_handler(message: types.Message):
         if act.semester(message.from_user.id) == 0 and message.text[0] in ('1', '2'):
             act.statements[message.from_user.id]["semester"] = int(message.text[0])
             disciplines_list = db.get_disciplines(message.from_user.id, act.semester(message.from_user.id))
-            print(act.semester(message.from_user.id), disciplines_list)
+            # print(act.semester(message.from_user.id), disciplines_list)
             if disciplines_list:
                 kb = act.generateDisciplinesKeyboard(disciplines_list, False)
                 await message.answer(text(bold("Выберите желаемый предмет:")), reply_markup=kb,
@@ -479,6 +505,46 @@ async def actions_handler(message: types.Message):
             else:
                 act.reset(message.from_user.id)
                 await message.answer("Файл не найден!")
+
+    # /mkdir
+    elif act.isMkdirMode(message.from_user.id):
+        logging.info("actions_handler()::Mkdir mode \'{0}\' command sent from user {1}({2})"
+                     .format(message.text, message.from_user.full_name, message.from_user.id))
+
+        if act.semester(message.from_user.id) == 0 and message.text[0] in ('1', '2'):
+            act.statements[message.from_user.id]["semester"] = int(message.text[0])
+            disciplines_list = db.get_disciplines(message.from_user.id, act.semester(message.from_user.id))
+            # print(act.semester(message.from_user.id), disciplines_list)
+            if disciplines_list:
+                kb = act.generateDisciplinesKeyboard(disciplines_list, False)
+                await message.answer(text(bold("Выберите желаемый предмет:")), reply_markup=kb,
+                                     parse_mode=ParseMode.MARKDOWN_V2)
+            else:
+                act.reset(message.from_user.id)
+                await message.answer("Не удалось получить список дисциплин!")
+
+        elif act.currentDiscipline(message.from_user.id) == "":
+            act.statements[message.from_user.id]["currentDiscipline"] = message.text
+            folders_list = db.get_folders_by_discipline(message.from_user.id, act.semester(message.from_user.id),
+                                                        act.currentDiscipline(message.from_user.id))
+            if folders_list:
+                await message.answer(text(bold("Введите имя для новой папки: ")), parse_mode=ParseMode.MARKDOWN_V2)
+            else:
+                act.reset(message.from_user.id)
+                await message.answer("Не удалось получить список разделов!")
+
+        else:
+            new_dir = message.text
+            if db.folder_exists(new_dir):
+                act.reset(message.from_user.id)
+                await message.answer("Папка \"{0}\" уже существует!".format(new_dir))
+            else:
+                db.make_dir(message.from_user.id, act.semester(message.from_user.id),
+                            act.currentDiscipline(message.from_user.id), new_dir)
+                await message.answer("Успешно создано: \n{0} семестр\\{1}\\{2}\\".format(
+                    act.semester(message.from_user.id), act.currentDiscipline(message.from_user.id),
+                    new_dir))
+                act.reset(message.from_user.id)
 
     else:
         logging.info("actions_handler():: UNKNOWN \'{0}\' command sent from user {1}"

@@ -104,6 +104,15 @@ class DbManager:
                     (user_data[3], group, semester, discipline_name)).fetchall()
                 return [v[0] for v in result]
 
+    def make_dir(self, user_id, semester, discipline_name, new_dir):
+        """Создаём новую папку"""
+        course = self.get_user_info(user_id)[3]
+        group = self.get_db_group(user_id)
+        if not group or not course:
+            return []
+        else:
+            self.add_file("placeholder", "placeholder", course, group, semester, discipline_name, new_dir, "placeholder")
+
     def get_file_record(self, user_id, semester, discipline_name, dir_name, fname):
         """Получаем запись файла из бд, c определённым курсом,группой, названием, семестром"""
         with self.connection:
@@ -115,7 +124,10 @@ class DbManager:
                 result = self.cursor.execute(
                     'SELECT * FROM `files` WHERE `course` = ? AND `group` = ? AND `semester` = ? AND `discipline_name` = ? AND `dir_name` = ? AND `fname` = ?',
                     (user_data[3], group, semester, discipline_name, dir_name, fname)).fetchone()
-                return result
+                if result[0] != "placeholder":
+                    return result
+                else:
+                    return ()
 
     def add_file(self, file_id, fname, course, group, semester, discipline_name, dir_name, owner):
         """Добавление файла в db"""
@@ -135,8 +147,8 @@ class DbManager:
         group = self.get_db_group(user_id)
         with self.connection:
             result = self.cursor.execute('SELECT * FROM `files` WHERE `course` = ? AND `group` = ? AND `semester` = ? '
-                                         'AND `discipline_name` = ? AND `dir_name` = ?',
-                                         (user_data[3], group, semester, discipline_name, dir_name)).fetchall()
+                                         'AND `discipline_name` = ? AND `dir_name` = ? AND `file_id` != ?',
+                                         (user_data[3], group, semester, discipline_name, dir_name, "placeholder")).fetchall()
             return result
 
     def search_by_name(self, fname):
@@ -145,7 +157,7 @@ class DbManager:
         with self.connection:
             result = self.cursor.execute('SELECT * FROM `files`').fetchall()
             for file in result:
-                if file[1].lower().find(fname.lower()) != -1:
+                if file[1].lower().find(fname.lower()) != -1 and file[1].lower() != "placeholder":
                     resp.append(file)
             return resp
 
