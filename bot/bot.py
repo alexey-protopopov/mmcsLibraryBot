@@ -44,8 +44,10 @@ async def showHelp(message: types.Message):
     logging.info("/help command sent from user {0}".format(message.from_user.full_name))
     act.reset(message.from_user.id)
     await message.answer(text("Список команд:", "/files —  учебные материалы", "/search —  поиск по названию",
-                              "/forget — сброс данных пользователя", "/admin — получить права админа[TEST]"
-                                                                     "/info —  информация о боте", sep='\n'))
+                              "/forget — сброс данных пользователя", "/admin — получить права админа[TEST]",
+                              "/upload — загрузить файл", "/delete — удалить файл", "/mkdir — создать папку"
+                                                                                    "\n/info —  информация о боте",
+                              sep='\n'))
 
 
 @dp.message_handler(commands=['info'])
@@ -149,7 +151,7 @@ async def upload_doc(message: types.Message):
                             db.get_db_group(message.from_user.id),
                             act.semester(message.from_user.id), act.currentDiscipline(message.from_user.id),
                             act.currentFolder(message.from_user.id), message.from_user.id)
-                report = f'Successfully uploaded by {message.from_user.full_name}({message.from_user.id})and saved to DB file {name} with id {file_id}'
+                report = f'Successfully uploaded by {message.from_user.full_name}({message.from_user.id})\nand saved to DB file "{name}"\nwith id {file_id}'
                 logging.info(report)
                 await bot.send_message(AGENT_ID, report)
                 act.reset(message.from_user.id)
@@ -177,6 +179,21 @@ async def upload(message: types.Message):
 
     else:
         await message.answer("Недостаточно прав, используйте /admin, чтобы получить права на загрузку")
+
+
+@dp.message_handler(commands=['delete'])
+async def delete(message: types.Message):
+    logging.info("/delete command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
+    act.reset(message.from_user.id)
+    if db.get_user_info(message.from_user.id)[2] == 1:
+        await message.answer("Режим удаления!")
+        act.startDelete(message.from_user.id)
+        semesters_kb = act.semestersKeyboard()
+        await message.answer(text(bold("Выберите семестр: ")), reply_markup=semesters_kb,
+                             parse_mode=ParseMode.MARKDOWN_V2)
+
+    else:
+        await message.answer("Недостаточно прав, используйте /admin, чтобы получить права на удаление")
 
 
 @dp.message_handler(commands=['admin'])
@@ -362,6 +379,7 @@ async def actions_handler(message: types.Message):
                 act.reset(message.from_user.id)
                 await message.answer("<Пусто4>")
 
+    # Выбор пути для загрузки
     elif act.isUploadMode(message.from_user.id):
         logging.info("actions_handler()::Upload mode \'{0}\' command sent from user {1}({2})"
                      .format(message.text, message.from_user.full_name, message.from_user.id))
@@ -369,9 +387,8 @@ async def actions_handler(message: types.Message):
         if act.semester(message.from_user.id) == 0 and message.text[0] in ('1', '2'):
             act.statements[message.from_user.id]["semester"] = int(message.text[0])
             disciplines_list = db.get_disciplines(message.from_user.id, act.semester(message.from_user.id))
-            print(act.semester(message.from_user.id), disciplines_list)
             if disciplines_list:
-                kb = act.generateDisciplinesKeyboard(disciplines_list)
+                kb = act.generateDisciplinesKeyboard(disciplines_list, False)
                 await message.answer(text(bold("Выберите желаемый предмет:")), reply_markup=kb,
                                      parse_mode=ParseMode.MARKDOWN_V2)
             else:
@@ -383,8 +400,7 @@ async def actions_handler(message: types.Message):
             folders_list = db.get_folders_by_discipline(message.from_user.id, act.semester(message.from_user.id),
                                                         act.currentDiscipline(message.from_user.id))
             if folders_list:
-                kb = act.generateFoldersKeyboard(folders_list)
-                act.fLevelUp(message.from_user.id)
+                kb = act.generateFoldersKeyboard(folders_list, False)
                 await message.answer(text(bold("Выберите желаемый раздел:")), reply_markup=kb,
                                      parse_mode=ParseMode.MARKDOWN_V2)
             else:
@@ -393,7 +409,6 @@ async def actions_handler(message: types.Message):
 
         elif act.currentFolder(message.from_user.id) == "":
             act.statements[message.from_user.id]["currentFolder"] = message.text[2:]
-            # Нужна проверка на дурака
             if (act.semester(message.from_user.id) != 0) and (act.currentDiscipline(message.from_user.id) != "") and (
                     db.folder_exists(act.currentFolder(message.from_user.id))):
                 await message.answer("Файл будет загружен в \n{0} семестр\\{1}\\{2}\\".format(
@@ -404,6 +419,66 @@ async def actions_handler(message: types.Message):
             else:
                 act.reset(message.from_user.id)
                 await message.answer("Не найдена указанная папка!")
+
+    # Выбор пути для удаления
+    elif act.isDeleteMode(message.from_user.id):
+        logging.info("actions_handler()::Delete mode \'{0}\' command sent from user {1}({2})"
+                     .format(message.text, message.from_user.full_name, message.from_user.id))
+
+        if act.semester(message.from_user.id) == 0 and message.text[0] in ('1', '2'):
+            act.statements[message.from_user.id]["semester"] = int(message.text[0])
+            disciplines_list = db.get_disciplines(message.from_user.id, act.semester(message.from_user.id))
+            print(act.semester(message.from_user.id), disciplines_list)
+            if disciplines_list:
+                kb = act.generateDisciplinesKeyboard(disciplines_list, False)
+                await message.answer(text(bold("Выберите желаемый предмет:")), reply_markup=kb,
+                                     parse_mode=ParseMode.MARKDOWN_V2)
+            else:
+                act.reset(message.from_user.id)
+                await message.answer("Не удалось получить список дисциплин!")
+
+        elif act.currentDiscipline(message.from_user.id) == "":
+            act.statements[message.from_user.id]["currentDiscipline"] = message.text
+            folders_list = db.get_folders_by_discipline(message.from_user.id, act.semester(message.from_user.id),
+                                                        act.currentDiscipline(message.from_user.id))
+            if folders_list:
+                kb = act.generateFoldersKeyboard(folders_list, False)
+                await message.answer(text(bold("Выберите желаемый раздел:")), reply_markup=kb,
+                                     parse_mode=ParseMode.MARKDOWN_V2)
+            else:
+                act.reset(message.from_user.id)
+                await message.answer("Не удалось получить список разделов!")
+
+        elif act.currentFolder(message.from_user.id) == "":
+            act.statements[message.from_user.id]["currentFolder"] = message.text[2:]
+            files_list = db.get_files_from_folder(message.from_user.id, act.semester(message.from_user.id),
+                                                  act.currentDiscipline(message.from_user.id),
+                                                  act.currentFolder(message.from_user.id))
+            if files_list:
+                kb = act.generateFilesKeyboard(files_list, False)
+                await message.answer(text(bold("Выберите желаемый файл:")), reply_markup=kb,
+                                     parse_mode=ParseMode.MARKDOWN_V2)
+            else:
+                act.reset(message.from_user.id)
+                await message.answer("Не удалось получить список файлов!")
+
+        else:
+            fname = message.text[2:]
+            file_record = db.get_file_record(message.from_user.id, act.semester(message.from_user.id),
+                                             act.currentDiscipline(message.from_user.id),
+                                             act.currentFolder(message.from_user.id),
+                                             fname)
+            if file_record:
+                db.delete_file(message.from_user.id, act.semester(message.from_user.id),
+                               act.currentDiscipline(message.from_user.id),
+                               act.currentFolder(message.from_user.id), fname)
+                await message.answer("Успешно удалено: \n{0} семестр\\{1}\\{2}\\{3}".format(
+                    act.semester(message.from_user.id), act.currentDiscipline(message.from_user.id),
+                    act.currentFolder(message.from_user.id), fname))
+                act.reset(message.from_user.id)
+            else:
+                act.reset(message.from_user.id)
+                await message.answer("Файл не найден!")
 
     else:
         logging.info("actions_handler():: UNKNOWN \'{0}\' command sent from user {1}"

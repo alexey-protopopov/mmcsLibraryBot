@@ -25,6 +25,14 @@ class DbManager:
             result = self.cursor.execute('SELECT * FROM `files` WHERE `dir_name` = ?', (dir_name,)).fetchall()
             return bool(len(result))
 
+    def file_exists(self, fname, discipline_name, dir_name):  # TODO: расширить
+        """Проверяем, есть ли уже файл в базе"""
+        with self.connection:
+            result = self.cursor.execute(
+                'SELECT * FROM `files` WHERE `fname` = ? AND `discipline_name` = ? AND `dir_name` = ?',
+                (fname, discipline_name, dir_name)).fetchall()
+            return bool(len(result))
+
     def add_subscriber(self, user_id, status, course, group):
         """Добавляем нового подписчика"""
         with self.connection:
@@ -42,6 +50,15 @@ class DbManager:
         """Удаляем подписчика"""
         with self.connection:
             return self.cursor.execute('DELETE FROM `subscriptions` WHERE `user_id` = ?', (user_id,)).fetchall()
+
+    def delete_file(self, user_id, semester, discipline_name, dir_name, fname):
+        """Удаляем файл"""
+        course = self.get_user_info(user_id)[3]
+        group = self.get_db_group(user_id)
+        with self.connection:
+            return self.cursor.execute(
+                'DELETE FROM `files` WHERE `course` = ? AND `group` = ? AND `semester` = ? AND `fname` = ? AND `discipline_name` = ? AND `dir_name` = ?',
+                (course, group, semester, fname, discipline_name, dir_name)).fetchall()
 
     def get_user_info(self, user_id):
         """Получаем всю информацию о пользователе"""
@@ -99,14 +116,6 @@ class DbManager:
                     'SELECT * FROM `files` WHERE `course` = ? AND `group` = ? AND `semester` = ? AND `discipline_name` = ? AND `dir_name` = ? AND `fname` = ?',
                     (user_data[3], group, semester, discipline_name, dir_name, fname)).fetchone()
                 return result
-
-    def file_exists(self, fname, discipline_name, dir_name):
-        """Проверяем, есть ли уже файл в базе"""
-        with self.connection:
-            result = self.cursor.execute(
-                'SELECT * FROM `files` WHERE `fname` = ? AND `discipline_name` = ? AND `dir_name` = ?',
-                (fname, discipline_name, dir_name)).fetchall()
-            return bool(len(result))
 
     def add_file(self, file_id, fname, course, group, semester, discipline_name, dir_name, owner):
         """Добавление файла в db"""

@@ -72,6 +72,10 @@ class Actions:
         self.uid_check(uid)
         return self.statements[uid]["uploadStarted"]
 
+    def isDeleteMode(self, uid):
+        self.uid_check(uid)
+        return self.statements[uid]["deleteStarted"]
+
     def startReg(self, uid):
         self.uid_check(uid)
         self.statements[uid]["registrationStarted"] = True
@@ -87,6 +91,10 @@ class Actions:
     def startUpload(self, uid):
         self.uid_check(uid)
         self.statements[uid]["uploadStarted"] = True
+
+    def startDelete(self, uid):
+        self.uid_check(uid)
+        self.statements[uid]["deleteStarted"] = True
 
     def stopUpload(self, uid):
         self.uid_check(uid)
@@ -116,7 +124,8 @@ class Actions:
         self.statements[uid] = {"registrationStarted": False, "searchStarted": False, "filesMode": False,
                                 "search_pages": [], "search_pages_count": 0, "search_pages_position": 1,
                                 "filesLevel": 0,
-                                "semester": 0, "currentDiscipline": "", "currentFolder": "", "uploadStarted": False}
+                                "semester": 0, "currentDiscipline": "", "currentFolder": "", "uploadStarted": False,
+                                "deleteStarted": False}
 
     @staticmethod
     def generateFilePage(file):
@@ -147,30 +156,33 @@ class Actions:
         return self.statements[uid]["search_pages"]
 
     @staticmethod
-    def generateDisciplinesKeyboard(disciplines):
+    def generateDisciplinesKeyboard(disciplines, toggleUpButton=True):
         disciplines_kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-        up = KeyboardButton('⤴️На уровень выше')
-        disciplines_kb.add(up)
+        if toggleUpButton:
+            up = KeyboardButton('⤴️На уровень выше')
+            disciplines_kb.add(up)
         for d in disciplines:
             button = KeyboardButton(d)
             disciplines_kb.add(button)
         return disciplines_kb
 
     @staticmethod
-    def generateFoldersKeyboard(folders):
+    def generateFoldersKeyboard(folders, toggleUpButton=True):
         folders_kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-        up = KeyboardButton('⤴️На уровень выше')
-        folders_kb.add(up)
+        if toggleUpButton:
+            up = KeyboardButton('⤴️На уровень выше')
+            folders_kb.add(up)
         for folder in folders:
             button = KeyboardButton('📁 ' + folder)
             folders_kb.add(button)
         return folders_kb
 
     @staticmethod
-    def generateFilesKeyboard(files):
+    def generateFilesKeyboard(files, toggleUpButton=True):
         files_kb = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-        up = KeyboardButton('⤴️На уровень выше')
-        files_kb.add(up)
+        if toggleUpButton:
+            up = KeyboardButton('⤴️На уровень выше')
+            files_kb.add(up)
         for file in files:
             button = KeyboardButton('📘 ' + file[1])
             files_kb.add(button)
