@@ -60,6 +60,15 @@ class DbManager:
                 'DELETE FROM `files` WHERE `course` = ? AND `group` = ? AND `semester` = ? AND `fname` = ? AND `discipline_name` = ? AND `dir_name` = ?',
                 (course, group, semester, fname, discipline_name, dir_name)).fetchall()
 
+    def delete_dir(self, user_id, semester, discipline_name, dir_name):
+        """Удаляем папку и её содержимое"""
+        course = self.get_user_info(user_id)[3]
+        group = self.get_db_group(user_id)
+        with self.connection:
+            return self.cursor.execute(
+                'DELETE FROM `files` WHERE `course` = ? AND `group` = ? AND `semester` = ?  AND `discipline_name` = ? AND `dir_name` = ?',
+                (course, group, semester, discipline_name, dir_name)).fetchall()
+
     def get_user_info(self, user_id):
         """Получаем всю информацию о пользователе"""
         with self.connection:

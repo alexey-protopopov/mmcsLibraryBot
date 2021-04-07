@@ -57,7 +57,7 @@ async def showHelp(message: types.Message):
                               "Щепалов Владимир, 2 курс", "Татаренко Владимир, 1 курс", "Тищенко Артëм, 1 курс",
                               "Новиков Александр,1 курс", "Обратная связь: @protopych", sep='\n'))
     await message.answer(
-        "Что сейчас работает:\nНавигация по файлам(/files)\nПоиск по файлам(/search)\nСкачивание файлов\n")
+        "Что сейчас работает:\nНавигация по файлам(/files)\nПоиск по файлам(/search)\nСкачивание файлов\nЗагрузка/удаление файлов\nСоздание/удаление папок")
 
 
 @dp.message_handler(commands=['files'])
@@ -544,6 +544,47 @@ async def actions_handler(message: types.Message):
                 await message.answer("Успешно создано: \n{0} семестр\\{1}\\{2}\\".format(
                     act.semester(message.from_user.id), act.currentDiscipline(message.from_user.id),
                     new_dir))
+                act.reset(message.from_user.id)
+    # /rmdir
+    elif act.isRmdirMode(message.from_user.id):
+        logging.info("actions_handler()::Mkdir mode \'{0}\' command sent from user {1}({2})"
+                     .format(message.text, message.from_user.full_name, message.from_user.id))
+
+        if act.semester(message.from_user.id) == 0 and message.text[0] in ('1', '2'):
+            act.statements[message.from_user.id]["semester"] = int(message.text[0])
+            disciplines_list = db.get_disciplines(message.from_user.id, act.semester(message.from_user.id))
+            # print(act.semester(message.from_user.id), disciplines_list)
+            if disciplines_list:
+                kb = act.generateDisciplinesKeyboard(disciplines_list, False)
+                await message.answer(text(bold("Выберите желаемый предмет:")), reply_markup=kb,
+                                     parse_mode=ParseMode.MARKDOWN_V2)
+            else:
+                act.reset(message.from_user.id)
+                await message.answer("Не удалось получить список дисциплин!")
+
+        elif act.currentDiscipline(message.from_user.id) == "":
+            act.statements[message.from_user.id]["currentDiscipline"] = message.text
+            folders_list = db.get_folders_by_discipline(message.from_user.id, act.semester(message.from_user.id),
+                                                        act.currentDiscipline(message.from_user.id))
+            if folders_list:
+                kb = act.generateFoldersKeyboard(folders_list, False)
+                await message.answer(text(bold("Выберите желаемый раздел:")), reply_markup=kb,
+                                     parse_mode=ParseMode.MARKDOWN_V2)
+            else:
+                act.reset(message.from_user.id)
+                await message.answer("Не удалось получить список разделов!")
+
+        else:
+            dir_to_remove = message.text[2:]
+            if not db.folder_exists(dir_to_remove):
+                act.reset(message.from_user.id)
+                await message.answer("Папка \"{0}\" не найдена!".format(dir_to_remove))
+            else:
+                db.delete_dir(message.from_user.id, act.semester(message.from_user.id),
+                              act.currentDiscipline(message.from_user.id), dir_to_remove)
+                await message.answer("Успешно удалено: \n{0} семестр\\{1}\\{2}\\".format(
+                    act.semester(message.from_user.id), act.currentDiscipline(message.from_user.id),
+                    dir_to_remove))
                 act.reset(message.from_user.id)
 
     else:
