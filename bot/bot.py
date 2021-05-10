@@ -25,7 +25,8 @@ AGENT_ID = 1738887702
 async def subscribe(message: types.Message):
     logging.info("/start command sent from user {0}".format(message.from_user.full_name))
     if not db.subscriber_exists(message.from_user.id):
-
+        report = f"New user: {message.from_user.full_name}({message.from_user.id})"
+        await bot.send_message(AGENT_ID, report)
         await message.answer(text(bold('Привет!'), bold('Спасибо, что решил воспользоваться нашим ботом!'), sep='\n'),
                              parse_mode=ParseMode.MARKDOWN_V2)
         await message.answer("Напишите номер курса и группы через точку.  (x.x)")
@@ -146,10 +147,10 @@ async def upload_doc(message: types.Message):
                 msg = await bot.send_document(AGENT_ID, file, disable_notification=True)
                 file_id = getattr(msg, 'document').file_id
                 db.add_file(file_id, name, db.get_user_info(message.from_user.id)[3],
-                            db.get_db_group(message.from_user.id),
+                            db.get_user_info(message.from_user.id)[5],
                             act.semester(message.from_user.id), act.currentDiscipline(message.from_user.id),
                             act.currentFolder(message.from_user.id), message.from_user.id)
-                report = f'Successfully uploaded by {message.from_user.full_name}({message.from_user.id})\nand saved to DB file "{name}"\nwith id {file_id}'
+                report = f'Successfully uploaded by {message.from_user.full_name}({message.from_user.id})\nand saved to DB file "{name}"'
                 logging.info(report)
                 await bot.send_message(AGENT_ID, report)
                 act.reset(message.from_user.id)
@@ -245,7 +246,8 @@ async def actions_handler(message: types.Message):
         except (ValueError, IndexError):
             course = -1
             group = -1
-        if course not in range(1, 5) or (group not in range(1, 15) and (group != 45 and group != 57)):
+        if course not in range(1, 5) or (
+                group not in range(1, 15) and (group != 45 and group != 57)):  # улучшить валидацию
             await message.answer("Неверные данные! Попробуйте ещё раз:\n/start")
             act.stopReg(message.from_user.id)
         else:
@@ -544,6 +546,8 @@ async def actions_handler(message: types.Message):
                 await message.answer("Успешно создано: \n{0} семестр\\{1}\\{2}\\".format(
                     act.semester(message.from_user.id), act.currentDiscipline(message.from_user.id),
                     new_dir))
+                report = f"New dir {new_dir} created by: {message.from_user.full_name}({message.from_user.id})"
+                await bot.send_message(AGENT_ID, report)
                 act.reset(message.from_user.id)
     # /rmdir
     elif act.isRmdirMode(message.from_user.id):
@@ -585,6 +589,8 @@ async def actions_handler(message: types.Message):
                 await message.answer("Успешно удалено: \n{0} семестр\\{1}\\{2}\\".format(
                     act.semester(message.from_user.id), act.currentDiscipline(message.from_user.id),
                     dir_to_remove))
+                report = f"Dir {dir_to_remove} is deleted by: {message.from_user.full_name}({message.from_user.id})"
+                await bot.send_message(AGENT_ID, report)
                 act.reset(message.from_user.id)
 
     else:
