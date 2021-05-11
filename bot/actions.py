@@ -179,6 +179,7 @@ class Actions:
         if toggleUpButton:
             up = KeyboardButton('⤴️На уровень выше')
             folders_kb.add(up)
+        folders = sorted(folders)
         for folder in folders:
             button = KeyboardButton('📁 ' + folder)
             folders_kb.add(button)
@@ -190,6 +191,9 @@ class Actions:
         if toggleUpButton:
             up = KeyboardButton('⤴️На уровень выше')
             files_kb.add(up)
+        print(files)
+        files = sorted(files, key=lambda x: x[1])
+        print(files)
         for file in files:
             button = KeyboardButton('📘 ' + file[1])
             files_kb.add(button)

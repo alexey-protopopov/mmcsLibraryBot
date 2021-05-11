@@ -1,31 +1,14 @@
 import sqlite3
+import json
 
-directions = ("ПМИ", "Математика/Механика и математическое моделирование",
-              "Theoretical Computer Science and Information Technologies", "ФИИТ", "Педагогическое образование")
-
-course1 = {1: directions[0], 2: directions[0], 3: directions[0], 4: directions[0], 5: directions[0],
-           6: directions[0], 7: directions[1], 8: directions[3], 9: directions[3], 10: directions[3],
-           11: directions[3], 12: directions[2], 13: directions[4], 14: directions[4]}
-
-course2 = {1: directions[0], 2: directions[0], 3: directions[0], 4: directions[0], 45: directions[0],
-           5: directions[1],
-           57: directions[1], 6: directions[2], 7: directions[3], 8: directions[3], 9: directions[3],
-           10: directions[4],
-           11: directions[4], 12: directions[4], 13: directions[4]}
-
-course3 = {1: directions[0], 2: directions[0], 3: directions[0], 4: directions[0], 5: directions[0],
-           6: directions[0], 7: directions[1], 57: directions[1], 8: directions[3], 9: directions[3], 10: directions[4],
-           11: directions[4]}
-
-course4 = {1: directions[0], 2: directions[0], 3: directions[0], 4: directions[0], 5: directions[0],
-           6: directions[4], 7: directions[1], 8: directions[3], 9: directions[3]}
-
-courses = (course1, course2, course3, course4)
+f = open("groups.json", "r", encoding="utf-8")
+courses = json.load(f)
+f.close()
 
 
 def get_direction(course, group):
     if 0 < course < 5 and group > 0:
-        return courses[course - 1][group]
+        return courses[course - 1][str(group)]
     else:
         return "Неизвестно"
 
@@ -153,10 +136,11 @@ class DbManager:
     def get_files_from_folder(self, user_id, semester, discipline_name, dir_name):
         user_data = self.get_user_info(user_id)
         with self.connection:
-            result = self.cursor.execute('SELECT * FROM `files` WHERE `course` = ? AND `direction` = ? AND `semester` = ? '
-                                         'AND `discipline_name` = ? AND `dir_name` = ? AND `file_id` != ?',
-                                         (user_data[3], user_data[5], semester, discipline_name, dir_name,
-                                          "placeholder")).fetchall()
+            result = self.cursor.execute(
+                'SELECT * FROM `files` WHERE `course` = ? AND `direction` = ? AND `semester` = ? '
+                'AND `discipline_name` = ? AND `dir_name` = ? AND `file_id` != ?',
+                (user_data[3], user_data[5], semester, discipline_name, dir_name,
+                 "placeholder")).fetchall()
             return result
 
     def search_by_name(self, fname):
