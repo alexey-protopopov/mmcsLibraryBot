@@ -94,7 +94,6 @@ class DbManager:
         """Получаем все дисциплины пользователя"""
         with self.connection:
             user_data = self.get_user_info(user_id)
-
             result = self.cursor.execute(
                 'SELECT DISTINCT `discipline_name` FROM `files` WHERE `course` = ? AND `direction` = ? AND `semester` = ?',
                 (user_data[3], user_data[5], semester)).fetchall()

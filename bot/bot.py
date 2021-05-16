@@ -10,14 +10,24 @@ from os import remove as f_remove
 from dbManager import DbManager, check_course_group
 from actions import Actions
 
+from telethon import TelegramClient, sync
+from telethon.tl.types import InputMessagesFilterDocument
+
 bot = Bot(token=config.API_TOKEN)
 dp = Dispatcher(bot)
 
 db = DbManager('db.db')
 logging.basicConfig(level=logging.INFO, format=u'%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 act = Actions()
+AGENT_ID = config.AGENT_ID
 
-AGENT_ID = 1738887702
+# telethon settings
+entity = config.entity
+api_id = config.api_id
+api_hash = config.api_hash
+phone = config.phone
+chat_id = config.chat_id
+client = TelegramClient(entity, api_id, api_hash)
 
 
 # 1)Приветствие Пользователя, выбор курса, группы, по умолчанию, семестр(Посмотреть форматирование текста tg)
@@ -29,15 +39,19 @@ async def subscribe(message: types.Message):
         await bot.send_message(AGENT_ID, report)
         await message.answer(text(bold('Привет!'), bold('Спасибо, что решил воспользоваться нашим ботом!'), sep='\n'),
                              parse_mode=ParseMode.MARKDOWN_V2)
-        await message.answer("Напишите номер курса и группы через точку.  (x.x)")
-        await message.answer(
-            "Обращаем ваше внимание, что в данный момент корректно работают только группы 2.7, 2.8, 2.9!")
+        await message.answer("Напишите номер курса[1-4] и группы через точку.  (x.x)")
         act.startReg(message.from_user.id)
 
     else:
-        # если он уже есть, то просто обновляем ему статус подписки
-        # db.update_subscription(message.from_user.id, True)
-        pass
+        await message.answer("Вы уже зарегистрированы! Используйте /forget для сброса данных")
+
+
+async def upload_big():
+    logging.info("/upload_big command")
+    async with client as client1:
+        doc = await client1.get_messages(chat_id, 1, filter=InputMessagesFilterDocument)
+        print(doc[0])
+        await client1.forward_messages(chat_id, doc[0])
 
 
 @dp.message_handler(commands=['help'])
@@ -124,6 +138,21 @@ async def upload_doc(message: types.Message):
     logging.info(
         "/upload_doc command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
 
+    if message.from_user.id == AGENT_ID:
+        name = message.document.file_name
+        file_id = getattr(message, 'document').file_id
+        uploader = act.statements[AGENT_ID]["uploader"]
+        db.add_file(file_id, name, db.get_user_info(uploader)[3],
+                    db.get_user_info(uploader)[5],
+                    act.semester(uploader), act.currentDiscipline(uploader),
+                    act.currentFolder(uploader), uploader)
+        report = f'Successfully uploaded by {message.from_user.full_name}({uploader})\nand saved to DB file "{name}"'
+        logging.info(report)
+        await bot.send_message(AGENT_ID, report)
+        act.reset(uploader)
+        act.reset(message.from_user.id)
+        await message.answer("Загрузка успешно завершена!")
+
     if act.isUploadMode(message.from_user.id) and (act.semester(message.from_user.id) != 0) and (
             act.currentDiscipline(message.from_user.id) != "") and (
             act.currentFolder(message.from_user.id)) != "":
@@ -135,10 +164,12 @@ async def upload_doc(message: types.Message):
             return
         try:
             file_info = await bot.get_file(document_id)
-        except Exception as e:
-            await message.answer("Ошибка при загрузке!(size > 20 мб?)")
+        except Exception as e:  # Обход ограничения на размер файла
             print(e)
-            act.reset(message.from_user.id)
+            await message.forward(AGENT_ID)
+            act.reset(AGENT_ID)
+            act.statements[AGENT_ID]["uploader"] = message.from_user.id
+            await upload_big()
             return
 
         fi = file_info.file_path
@@ -241,7 +272,6 @@ async def status(message: types.Message):
     if db.subscriber_exists(message.from_user.id):
         uinfo = db.get_user_info(message.from_user.id)
         user_status = ("Пользователь", "Админ")
-        print(uinfo)
         ans = f"Имя: {message.from_user.full_name}\nКурс: {uinfo[3]}\nГруппа: {uinfo[4]}\nНаправление: {uinfo[5]}\n" \
               f"Уровень доступа: {user_status[uinfo[2]]}"
         await message.answer(ans)
@@ -457,7 +487,6 @@ async def actions_handler(message: types.Message):
                 await message.answer("Файл будет загружен в \n{0} семестр\\{1}\\{2}\\".format(
                     act.semester(message.from_user.id), act.currentDiscipline(message.from_user.id),
                     act.currentFolder(message.from_user.id)))
-                await message.answer("Размер загружаемого файла —  не более 20 Мб!")
                 await message.answer("Ожидание отправки...")
             else:
                 act.reset(message.from_user.id)

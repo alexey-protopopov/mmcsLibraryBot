@@ -132,7 +132,7 @@ class Actions:
                                 "search_pages": [], "search_pages_count": 0, "search_pages_position": 1,
                                 "filesLevel": 0,
                                 "semester": 0, "currentDiscipline": "", "currentFolder": "", "uploadStarted": False,
-                                "deleteStarted": False, "mkdirStarted": False, "rmdirStarted": False}
+                                "deleteStarted": False, "mkdirStarted": False, "rmdirStarted": False, "uploader": 0}
 
     @staticmethod
     def generateFilePage(file):
