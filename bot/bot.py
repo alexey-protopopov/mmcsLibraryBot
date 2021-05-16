@@ -7,7 +7,7 @@ from aiogram.utils.markdown import bold, code, italic, text
 from aiogram.types import ParseMode
 from os import remove as f_remove
 
-from dbManager import DbManager
+from dbManager import DbManager, check_course_group
 from actions import Actions
 
 bot = Bot(token=config.API_TOKEN)
@@ -47,7 +47,8 @@ async def showHelp(message: types.Message):
     await message.answer(text("Список команд:", "/files —  учебные материалы", "/search —  поиск по названию",
                               "/forget — сброс данных пользователя", "/admin — получить права админа[TEST]",
                               "/upload — загрузить файл", "/delete — удалить файл", "/mkdir — создать папку",
-                              "/rmdir — удалить папку", "/info —  информация о боте", sep='\n'))
+                              "/rmdir — удалить папку", "/status —  информация о пользователе",
+                              "/info —  информация о боте", sep='\n'))
 
 
 @dp.message_handler(commands=['info'])
@@ -233,6 +234,21 @@ async def admin(message: types.Message):
     await message.answer("Вы стали админом!")
 
 
+@dp.message_handler(commands=['status'])
+async def status(message: types.Message):
+    logging.info("/status command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
+    act.reset(message.from_user.id)
+    if db.subscriber_exists(message.from_user.id):
+        uinfo = db.get_user_info(message.from_user.id)
+        user_status = ("Пользователь", "Админ")
+        print(uinfo)
+        ans = f"Имя: {message.from_user.full_name}\nКурс: {uinfo[3]}\nГруппа: {uinfo[4]}\nНаправление: {uinfo[5]}\n" \
+              f"Уровень доступа: {user_status[uinfo[2]]}"
+        await message.answer(ans)
+    else:
+        await message.answer("Вы не зарегистрированы!")
+
+
 @dp.message_handler()
 async def actions_handler(message: types.Message):
     # Регистрация пользователя
@@ -246,8 +262,7 @@ async def actions_handler(message: types.Message):
         except (ValueError, IndexError):
             course = -1
             group = -1
-        if course not in range(1, 5) or (
-                group not in range(1, 15) and (group != 45 and group != 57)):  # улучшить валидацию
+        if not check_course_group(course, group):
             await message.answer("Неверные данные! Попробуйте ещё раз:\n/start")
             act.stopReg(message.from_user.id)
         else:

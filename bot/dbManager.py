@@ -13,6 +13,14 @@ def get_direction(course, group):
         return "Неизвестно"
 
 
+def check_course_group(course, group):
+    try:
+        r = courses[course - 1][str(group)]
+    except (KeyError, IndexError):
+        return False
+    return True
+
+
 class DbManager:
     # поле status я удалил, надо будет исправить
     def __init__(self, database):
