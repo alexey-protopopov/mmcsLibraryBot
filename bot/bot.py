@@ -54,35 +54,58 @@ async def upload_big():
         await client1.forward_messages(chat_id, doc[0])
 
 
+# @dp.message_handler(commands=['msg'])
+# async def send_msg(message: types.Message):
+#     msg = "Здравствуйте! Мы обнаружили, что вы недавно обращались к нашему боту @mmcsLibraryBot, и что-то пошло не так.\n\n" \
+#            "Изучив логи, мы выяснили следующее: скорее всего, вы уже проверяли наш проект до этого.\n\n" \
+#           "Проблема состоит в том, что сейчас в БД бота не содежится записи с вашим id(т.е вы не зарегистрированы),\n" \
+#            "но т.к уже вы проверяли наш проект, у вас сохранилась история сообщений с ботом, при первом запуске любого бота клиентом автоматически отправляется команда /start, " \
+#            "в вашем случае этого не происходит, с этим и связана неправильная работа бота.\n\n Приносим извинения от лица нашей команды.\n" \
+#            "Теперь при попытке воспользоваться ботом, будучи незарегистррованным, пользователь получает соответствующее предупреждение.\n" \
+#            "Очень просим вас проверить наш проект ещё раз, выполнив команду /start " \
+#            ""
+#     await bot.send_message(uid, msg)
+
+
 @dp.message_handler(commands=['help'])
 async def showHelp(message: types.Message):
-    logging.info("/help command sent from user {0}".format(message.from_user.full_name))
-    act.reset(message.from_user.id)
-    await message.answer(text("Список команд:", "/files —  учебные материалы", "/search —  поиск по названию",
-                              "/forget — сброс данных пользователя", "/admin — получить права админа[TEST]",
-                              "/upload — загрузить файл", "/delete — удалить файл", "/mkdir — создать папку",
-                              "/rmdir — удалить папку", "/status —  информация о пользователе",
-                              "/info —  информация о боте", sep='\n'))
+    if db.subscriber_exists(message.from_user.id):
+        logging.info("/help command sent from user {0}".format(message.from_user.full_name))
+        act.reset(message.from_user.id)
+        await message.answer(text("Список команд:", "/files —  учебные материалы", "/search —  поиск по названию",
+                                  "/forget — сброс данных пользователя", "/admin — получить права админа[TEST]",
+                                  "/upload — загрузить файл", "/delete — удалить файл", "/mkdir — создать папку",
+                                  "/rmdir — удалить папку", "/status —  информация о пользователе",
+                                  "/info —  информация о боте", sep='\n'))
+    else:
+        await message.answer("Вы не зарегистрированы!(Используйте /start)")
 
 
 @dp.message_handler(commands=['info'])
 async def showHelp(message: types.Message):
-    logging.info("/info command sent from user {0}".format(message.from_user.full_name))
-    act.reset(message.from_user.id)
-    await message.answer(text("Бот разработан в рамках ПД 20/21", "Состав команды: ", "Протопопов Алексей, 2 курс",
-                              "Щепалов Владимир, 2 курс", "Татаренко Владимир, 1 курс", "Тищенко Артëм, 1 курс",
-                              "Новиков Александр,1 курс", "Обратная связь: @protopych", sep='\n'))
-    await message.answer(
-        "Что сейчас работает:\nНавигация по файлам(/files)\nПоиск по файлам(/search)\nСкачивание файлов\nЗагрузка/удаление файлов\nСоздание/удаление папок")
+    if db.subscriber_exists(message.from_user.id):
+        logging.info("/info command sent from user {0}".format(message.from_user.full_name))
+        act.reset(message.from_user.id)
+        await message.answer(text("Бот разработан в рамках ПД 20/21", "Состав команды: ", "Протопопов Алексей, 2 курс",
+                                  "Щепалов Владимир, 2 курс", "Татаренко Владимир, 1 курс", "Тищенко Артëм, 1 курс",
+                                  "Новиков Александр,1 курс", "Обратная связь: @protopych", sep='\n'))
+        await message.answer(
+            "Что сейчас работает:\nНавигация по файлам(/files)\nПоиск по файлам(/search)\nСкачивание файлов\nЗагрузка/удаление файлов\nСоздание/удаление папок")
+    else:
+        await message.answer("Вы не зарегистрированы!(Используйте /start)")
 
 
 @dp.message_handler(commands=['files'])
 async def filesStore(message: types.Message):
-    logging.info("/files command sent from user {0}".format(message.from_user.full_name))
-    act.reset(message.from_user.id)
-    act.startFilesMode(message.from_user.id)
-    semesters_kb = act.semestersKeyboard()
-    await message.answer(text(bold("Выберите семестр")), reply_markup=semesters_kb, parse_mode=ParseMode.MARKDOWN_V2)
+    if db.subscriber_exists(message.from_user.id):
+        logging.info("/files command sent from user {0}".format(message.from_user.full_name))
+        act.reset(message.from_user.id)
+        act.startFilesMode(message.from_user.id)
+        semesters_kb = act.semestersKeyboard()
+        await message.answer(text(bold("Выберите семестр")), reply_markup=semesters_kb,
+                             parse_mode=ParseMode.MARKDOWN_V2)
+    else:
+        await message.answer("Вы не зарегистрированы!(Используйте /start)")
 
 
 @dp.message_handler(commands=['forget'])
@@ -98,10 +121,13 @@ async def deleteSubscriber(message: types.Message):
 
 @dp.message_handler(commands=['search'])
 async def search(message: types.Message):
-    logging.info("/search command sent from user {0}".format(message.from_user.full_name))
-    act.reset(message.from_user.id)
-    act.startSearch(message.from_user.id)
-    await message.answer("Что будем искать?")
+    if db.subscriber_exists(message.from_user.id):
+        logging.info("/search command sent from user {0}".format(message.from_user.full_name))
+        act.reset(message.from_user.id)
+        act.startSearch(message.from_user.id)
+        await message.answer("Что будем искать?")
+    else:
+        await message.answer("Вы не зарегистрированы!(Используйте /start)")
 
 
 @dp.callback_query_handler(lambda c: c.data == 'right')
@@ -149,13 +175,14 @@ async def upload_doc(message: types.Message):
         report = f'Successfully uploaded by {message.from_user.full_name}({uploader})\nand saved to DB file "{name}"'
         logging.info(report)
         await bot.send_message(AGENT_ID, report)
+        await bot.send_message(uploader, "Загрузка успешно завершена!")
         act.reset(uploader)
         act.reset(message.from_user.id)
         await message.answer("Загрузка успешно завершена!")
 
     if act.isUploadMode(message.from_user.id) and (act.semester(message.from_user.id) != 0) and (
             act.currentDiscipline(message.from_user.id) != "") and (
-            act.currentFolder(message.from_user.id)) != "":
+            act.currentFolder(message.from_user.id)) != "" and db.subscriber_exists(message.from_user.id):
         document_id = message.document.file_id
         name = message.document.file_name
         if db.file_exists(name, act.currentDiscipline(message.from_user.id), act.currentFolder(message.from_user.id)):
@@ -201,6 +228,9 @@ async def upload_doc(message: types.Message):
 async def upload(message: types.Message):
     logging.info("/upload command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
     act.reset(message.from_user.id)
+    if not db.subscriber_exists(message.from_user.id):
+        await message.answer("Вы не зарегистрированы!(Используйте /start)")
+        return
     if db.get_user_info(message.from_user.id)[2] == 1:
         await message.answer("[Режим загрузки]")
         act.startUpload(message.from_user.id)
@@ -215,6 +245,9 @@ async def upload(message: types.Message):
 @dp.message_handler(commands=['mkdir'])
 async def mkdir(message: types.Message):
     logging.info("/mkdir command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
+    if not db.subscriber_exists(message.from_user.id):
+        await message.answer("Вы не зарегистрированы!(Используйте /start)")
+        return
     act.reset(message.from_user.id)
     if db.get_user_info(message.from_user.id)[2] == 1:
         await message.answer("[Создание новой папки]")
@@ -230,6 +263,9 @@ async def mkdir(message: types.Message):
 @dp.message_handler(commands=['rmdir'])
 async def rmdir(message: types.Message):
     logging.info("/rmdir command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
+    if not db.subscriber_exists(message.from_user.id):
+        await message.answer("Вы не зарегистрированы!(Используйте /start)")
+        return
     act.reset(message.from_user.id)
     if db.get_user_info(message.from_user.id)[2] == 1:
         await message.answer("[Удаление папки]")
@@ -245,6 +281,9 @@ async def rmdir(message: types.Message):
 @dp.message_handler(commands=['delete'])
 async def delete(message: types.Message):
     logging.info("/delete command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
+    if not db.subscriber_exists(message.from_user.id):
+        await message.answer("Вы не зарегистрированы!(Используйте /start)")
+        return
     act.reset(message.from_user.id)
     if db.get_user_info(message.from_user.id)[2] == 1:
         await message.answer("[Режим удаления]")
@@ -260,6 +299,9 @@ async def delete(message: types.Message):
 @dp.message_handler(commands=['admin'])
 async def admin(message: types.Message):
     logging.info("/admin command sent from user {0}({1})".format(message.from_user.full_name, message.from_user.id))
+    if not db.subscriber_exists(message.from_user.id):
+        await message.answer("Вы не зарегистрированы!(Используйте /start)")
+        return
     act.reset(message.from_user.id)
     db.set_admin(message.from_user.id)
     await message.answer("Вы стали админом!")
